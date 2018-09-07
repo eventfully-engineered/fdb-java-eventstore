@@ -17,6 +17,8 @@ import com.fasterxml.uuid.Generators;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -54,6 +56,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // - Should clients pass in their on directory/subspace?
 // - How do we want to handle position in global vs stream supspace?
 public class EventStoreLayer implements EventStore {
+
+    private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
 
     private static final List<String> GLOBAL_SUBPATH = Arrays.asList(EventStoreSubspaces.GLOBAL.getValue());
     private static final List<String> STREAM_SUBPATH = Arrays.asList(EventStoreSubspaces.STREAM.getValue());
@@ -245,13 +249,12 @@ public class EventStoreLayer implements EventStore {
                 for (int i = 0; i < kvs.size(); i++) {
                     // for (KeyValue kv : kvs) {
                     byte[] key = kvs.get(i).getKey();
-                    System.out.println(key);
+                    LOG.info("key: {}", key);
                     Tuple t = globalSubspace.unpack(key);
 
-                    System.out.println("tuple " + t);
-                    System.out.println("size of tuple: " + t.size());
-                    // System.out.println("first tuple is a long: " + t.getLong(0));
-                    System.out.println(kvs.get(i).getValue());
+                    LOG.info("tuple {}", t);
+                    LOG.info("size of tuple: {}", t.size());
+                    LOG.info("value {}", kvs.get(i).getValue());
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
@@ -277,9 +280,7 @@ public class EventStoreLayer implements EventStore {
                     direction,
                     null,
                     messages);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
+            } catch (InterruptedException|ExecutionException e) {
                 e.printStackTrace();
             }
 
@@ -328,14 +329,14 @@ public class EventStoreLayer implements EventStore {
                 for (int i = 0; i < kvs.size(); i++) {
                     // for (KeyValue kv : kvs) {
                     byte[] key = kvs.get(i).getKey();
-                    System.out.println(key);
+                    LOG.info("key {}", key);
                     Tuple t = streamSubspace.unpack(key);
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
-                    System.out.println("tuple " + t);
-                    System.out.println("size of tuple: " + t.size());
-                    System.out.println("first tuple is a long: " + t.getLong(0));
-                    System.out.println(kvs.get(i).getValue());
+                    LOG.info("tuple {}", t);
+                    LOG.info("size of tuple: {}", t.size());
+                    LOG.info("first tuple is a long: {}", t.getLong(0));
+                    LOG.info("value ", kvs.get(i).getValue());
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
@@ -362,9 +363,7 @@ public class EventStoreLayer implements EventStore {
                     false,
                     null,
                     messages);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
+            } catch (InterruptedException|ExecutionException e) {
                 e.printStackTrace();
             }
 
@@ -389,11 +388,10 @@ public class EventStoreLayer implements EventStore {
             throw new RuntimeException("failed to unpack key");
         }
 
-        System.out.println(t.getVersionstamp(0).toString());
-        System.out.println(t.getVersionstamp(0).getBytes());
-        System.out.println(ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong());
-        System.out.println(DateTime.now().getMillis());
-        System.out.println(tr.getCommittedVersion());
+        LOG.info("versionstamp {}", t.getVersionstamp(0).toString());
+        LOG.info("versionstamp bytes {}", t.getVersionstamp(0).getBytes());
+        LOG.info("versionstamp as long {}", ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong());
+        LOG.info("committedversion {}", tr.getCommittedVersion());
         return t.getLong(0) + 1;
     }
 
