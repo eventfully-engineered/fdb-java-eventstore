@@ -34,46 +34,40 @@ public interface EventStore {
      *
      * @param fromPositionInclusive position to start reading from. Use Position.START to start from the beginning
      * @param maxCount maximum number of events to read
-     * @param prefetch Prefetches the message data as part of the page read. This means a single request to the server but a higher payload size.
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount, boolean prefetch) throws SQLException;
+    ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount) throws SQLException;
 
     /**
      *
      * @param fromPositionInclusive The position to start reading from. Use Position.END to start from the end.
      * @param maxCount maximum number of events to read
-     * @param prefetch Prefetches the message data as part of the page read. This means a single request to the server but a higher payload size.
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount, boolean prefetch) throws SQLException;
+    ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount) throws SQLException;
 
     /**
      *
      * @param streamId the stream id to read
      * @param fromVersionInclusive The version of the stream to start reading from. Use StreamVersion.Start to read from the start.
      * @param maxCount maximum number of events to read
-     * @param prefetch Prefetches the message data as part of the page read. This means a single request to the server but a higher payload size.
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     ReadStreamPage readStreamForwards(
         String streamId,
         int fromVersionInclusive,
-        int maxCount,
-        boolean prefetch) throws SQLException;
+        int maxCount) throws SQLException;
 
     /**
      *
      * @param streamId the stream id to read
      * @param fromVersionInclusive The version of the stream to start reading from. Use StreamVersion.End to read from the end
      * @param maxCount maximum number of events to read
-     * @param prefetch Prefetches the message data as part of the page read. This means a single request to the server but a higher payload size.
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     ReadStreamPage readStreamBackwards(String streamId,
                                        int fromVersionInclusive,
-                                       int maxCount,
-                                       boolean prefetch) throws SQLException;
+                                       int maxCount) throws SQLException;
 
 
     /**

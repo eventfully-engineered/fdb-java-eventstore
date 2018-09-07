@@ -19,7 +19,6 @@ import com.google.common.hash.Hashing;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -218,12 +217,12 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount, boolean prefetch) {
+    public ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount) {
         return readAllInternal(fromPositionInclusive, maxCount, false);
     }
 
     @Override
-    public ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount, boolean prefetch) {
+    public ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount) {
         return readAllInternal(fromPositionInclusive, maxCount, true);
     }
 
@@ -269,11 +268,13 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
+                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+
                 return new ReadAllPage(
                     fromPositionInclusive,
                     0L,
                     false,
-                    ReadDirection.FORWARD,
+                    direction,
                     null,
                     messages);
             } catch (InterruptedException e) {
@@ -287,8 +288,16 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadStreamPage readStreamForwards(String streamId, int fromVersionInclusive, int maxCount, boolean prefetch) {
+    public ReadStreamPage readStreamForwards(String streamId, int fromVersionInclusive, int maxCount) {
+        return readStreamInternal(streamId, fromVersionInclusive, maxCount, false);
+    }
 
+    @Override
+    public ReadStreamPage readStreamBackwards(String streamId, int fromVersionInclusive, int maxCount) {
+        return readStreamInternal(streamId, fromVersionInclusive, maxCount, true);
+    }
+
+    private ReadStreamPage readStreamInternal(String streamId, int fromVersionInclusive, int maxCount, boolean reverse) {
         HashCode streamHash = Hashing.murmur3_128().hashString(streamId, UTF_8);
         return database.read(tr -> {
             Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
@@ -298,7 +307,7 @@ public class EventStoreLayer implements EventStore {
 
             // TODO: look at the various streaming modes to determine best fit
             //AsyncIterable<KeyValue> r = tr.getRange(new Range(start, end), maxCount, false, StreamingMode.EXACT);
-            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, false, StreamingMode.EXACT);
+            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.EXACT);
 
             // TODO: how to get a slice?
             try {
@@ -317,10 +326,11 @@ public class EventStoreLayer implements EventStore {
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
-                // for (KeyValue kv : kvs) {
+                    // for (KeyValue kv : kvs) {
                     byte[] key = kvs.get(i).getKey();
                     System.out.println(key);
                     Tuple t = streamSubspace.unpack(key);
+                    Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     System.out.println("tuple " + t);
                     System.out.println("size of tuple: " + t.size());
@@ -328,7 +338,7 @@ public class EventStoreLayer implements EventStore {
                     System.out.println(kvs.get(i).getValue());
                     StreamMessage message = new StreamMessage(
                         streamId,
-                        null,
+                        tupleValue.getUUID(0),
                         0,
                         0L,
                         DateTime.now(),
@@ -339,6 +349,8 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
+                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+
                 return new ReadStreamPage(
                     streamId,
                     PageReadStatus.SUCCESS,
@@ -346,7 +358,7 @@ public class EventStoreLayer implements EventStore {
                     0,
                     0,
                     0L,
-                    ReadDirection.FORWARD,
+                    direction,
                     false,
                     null,
                     messages);
@@ -358,16 +370,6 @@ public class EventStoreLayer implements EventStore {
 
             return null;
         });
-
-    }
-
-    @Override
-    public ReadStreamPage readStreamBackwards(String streamId, int fromVersionInclusive, int maxCount, boolean prefetch) throws SQLException {
-        return null;
-    }
-
-    private void innerRead() {
-
     }
 
     // this might be the same as getLastKeyFuture

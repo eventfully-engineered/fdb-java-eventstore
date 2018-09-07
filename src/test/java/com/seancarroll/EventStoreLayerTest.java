@@ -12,8 +12,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,9 +29,7 @@ class EventStoreLayerTest {
                 try {
                     DirectorySubspace ruscelloSubspace = new DirectoryLayer(true).createOrOpen(tr, Arrays.asList("ruscello")).get();
                     tr.clear(ruscelloSubspace.range());
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
+                } catch (InterruptedException|ExecutionException e) {
                     e.printStackTrace();
                 }
                 return null;
@@ -49,9 +47,7 @@ class EventStoreLayerTest {
                 db.run((Transaction tr) -> {
                     try {
                         return new DirectoryLayer(true).createOrOpen(tr, Arrays.asList("ruscello")).get();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (ExecutionException e) {
+                    } catch (InterruptedException|ExecutionException e) {
                         e.printStackTrace();
                     }
                     return null;
@@ -64,7 +60,7 @@ class EventStoreLayerTest {
             AppendResult result = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             assertNotNull(result);
 
-            ReadStreamPage page = es.readStreamForwards("test-stream", 0, 500, false);
+            ReadStreamPage page = es.readStreamForwards("test-stream", 0, 500);
 
             assertNotNull(page);
             assertEquals(5, page.getMessages().length);
@@ -77,7 +73,7 @@ class EventStoreLayerTest {
             AppendResult result2 = es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
             assertNotNull(result2);
 
-            ReadAllPage readAllPage = es.readAllForwards(0, 10, false);
+            ReadAllPage readAllPage = es.readAllForwards(0, 10);
             assertNotNull(readAllPage);
             assertEquals(10, readAllPage.getMessages().length);
             assertFalse(page.isEnd());
@@ -93,21 +89,34 @@ class EventStoreLayerTest {
     }
 
     @Test
-    public void readAllTest() {
+    public void readAllForwardTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace =
-                db.run((Transaction tr) -> {
-                    try {
-                        return new DirectoryLayer(true).createOrOpen(tr, Arrays.asList("ruscello")).get();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (ExecutionException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                });
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
 
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+
+            AppendResult result = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage forwardPage = es.readAllForwards(0, 1);
+            assertNotNull(forwardPage);
+            assertEquals(1, forwardPage.getMessages().length);
+            assertFalse(forwardPage.isEnd());
+            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+
+        }
+    }
+
+
+    // TODO: test for reading multiple streams forward
+    // TODO: test for reading multiple streams backwards
+
+    @Test
+    public void readAllBackwardsTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -115,22 +124,50 @@ class EventStoreLayerTest {
             AppendResult result = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             assertNotNull(result);
 
-            ReadAllPage forwardPage = es.readAllForwards(0, 1, false);
-
-            assertNotNull(forwardPage);
-            assertEquals(1, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
-            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
-            System.out.println(forwardPage.getMessages()[0].getMessageId());
-
-
-            ReadAllPage backwardPage = es.readAllBackwards(0, 1, false);
+            ReadAllPage backwardPage = es.readAllBackwards(0, 1);
 
             assertNotNull(backwardPage);
             assertEquals(1, backwardPage.getMessages().length);
             assertFalse(backwardPage.isEnd());
             assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
-            System.out.println(backwardPage.getMessages()[0].getMessageId());
+        }
+    }
+
+    @Test
+    public void readStreamForward() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            AppendResult result = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+
+            assertNotNull(forwardPage);
+            assertEquals(1, forwardPage.getMessages().length);
+            assertFalse(forwardPage.isEnd());
+            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+        }
+    }
+
+    @Test
+    public void readStreamBackwards() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            AppendResult result = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadStreamPage backwardPage = es.readStreamBackwards("test-stream", 0, 1);
+
+            assertNotNull(backwardPage);
+            assertEquals(1, backwardPage.getMessages().length);
+            assertFalse(backwardPage.isEnd());
+            assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
         }
     }
 
@@ -138,18 +175,7 @@ class EventStoreLayerTest {
     public void readHeadPosition() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace =
-                db.run((Transaction tr) -> {
-                    try {
-                        return new DirectoryLayer(true).createOrOpen(tr, Arrays.asList("ruscello")).get();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (ExecutionException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                });
-
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -174,11 +200,23 @@ class EventStoreLayerTest {
         }
     }
 
-    public static NewStreamMessage[] createNewStreamMessages(int... messageNumbers) {
+    private static DirectorySubspace createRuscelloSubspace(Database db) {
+        return db.run((Transaction tr) -> {
+                try {
+                    return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("ruscello")).get();
+                } catch (InterruptedException|ExecutionException e) {
+                    e.printStackTrace();
+                }
+                return null;
+            });
+    }
+
+
+    private static NewStreamMessage[] createNewStreamMessages(int... messageNumbers) {
         return createNewStreamMessages("\"data\"", messageNumbers);
     }
 
-    public static NewStreamMessage[] createNewStreamMessages(String jsonData, int[] messageNumbers) {
+    private static NewStreamMessage[] createNewStreamMessages(String jsonData, int[] messageNumbers) {
         NewStreamMessage[] newMessages = new NewStreamMessage[messageNumbers.length];
         for (int i = 0; i < messageNumbers.length; i++) {
             UUID id = UUID.fromString(StringUtils.leftPad("00000000-0000-0000-0000-" + String.valueOf(messageNumbers[i]), 12, "0"));
