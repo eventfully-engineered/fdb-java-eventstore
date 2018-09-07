@@ -169,36 +169,14 @@ public class EventStoreLayer implements EventStore {
 
                 // TODO: fix
                 return new AppendResult(0, 0L);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
+            } catch (InterruptedException|ExecutionException e) {
+                // TODO: what to actually do here
+                LOG.error("error appending to stream", e);
             }
-
 
             return null;
         });
 
-    }
-
-    public CompletableFuture<byte[]> getLastKeyFuture(Transaction tr, Subspace subspace) {
-        return tr.getKey(KeySelector.lastLessThan(subspace.range().end));
-    }
-
-
-    public long mustGetNextIndex(CompletableFuture<byte[]> key, Subspace subspace, int position) throws ExecutionException, InterruptedException {
-        byte[] k = key.get();
-
-        if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(subspace.range().begin)) < 0) {
-            return 0;
-        }
-
-        Tuple t = subspace.unpack(k);
-        if (t == null) {
-            throw new RuntimeException("failed to unpack key");
-        }
-
-        return t.getLong(0) + 1;
     }
 
     @Override
@@ -281,7 +259,8 @@ public class EventStoreLayer implements EventStore {
                     null,
                     messages);
             } catch (InterruptedException|ExecutionException e) {
-                e.printStackTrace();
+                // TODO: what do we actually want to do here
+                LOG.error("error reading from global subspace", e);
             }
 
             return null;
@@ -364,12 +343,35 @@ public class EventStoreLayer implements EventStore {
                     null,
                     messages);
             } catch (InterruptedException|ExecutionException e) {
-                e.printStackTrace();
+                // TODO: what do we actually want to do here
+                LOG.error("error reading from stream {}", streamId, e);
             }
 
             return null;
         });
     }
+
+
+    public CompletableFuture<byte[]> getLastKeyFuture(Transaction tr, Subspace subspace) {
+        return tr.getKey(KeySelector.lastLessThan(subspace.range().end));
+    }
+
+
+    public long mustGetNextIndex(CompletableFuture<byte[]> key, Subspace subspace, int position) throws ExecutionException, InterruptedException {
+        byte[] k = key.get();
+
+        if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(subspace.range().begin)) < 0) {
+            return 0;
+        }
+
+        Tuple t = subspace.unpack(k);
+        if (t == null) {
+            throw new RuntimeException("failed to unpack key");
+        }
+
+        return t.getLong(0) + 1;
+    }
+
 
     // this might be the same as getLastKeyFuture
     // I dont really like passing in any subsapce and would like to constrain it if possible to ruscello subspaces
@@ -392,7 +394,9 @@ public class EventStoreLayer implements EventStore {
         LOG.info("versionstamp bytes {}", t.getVersionstamp(0).getBytes());
         LOG.info("versionstamp as long {}", ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong());
         LOG.info("committedversion {}", tr.getCommittedVersion());
-        return t.getLong(0) + 1;
+        // return t.getLong(0) + 1;
+        // return t.getLong(0);
+        return ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong();
     }
 
     @Override
