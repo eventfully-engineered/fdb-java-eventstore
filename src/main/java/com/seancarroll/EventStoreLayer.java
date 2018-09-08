@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-
+// https://apple.github.io/foundationdb/developer-guide.html#namespace-management
 // https://eventstore.org/docs/dotnet-api/reading-events/index.html
 // https://github.com/apple/foundationdb/blob/master/design/tuple.md
 // https://forums.foundationdb.org/t/application-design-using-subspace-and-tuple/452
@@ -63,9 +63,7 @@ public class EventStoreLayer implements EventStore {
     private static final List<String> STREAM_SUBPATH = Arrays.asList(EventStoreSubspaces.STREAM.getValue());
 
     private final Database database;
-    private Directory directory;
-    private DirectorySubspace directorySubspace;
-    private DirectoryLayer directoryLayer;
+    private final DirectorySubspace directorySubspace;
 
 
     // instead of subspace should we pass in a string which represents the default content subspace aka prefix
@@ -89,85 +87,30 @@ public class EventStoreLayer implements EventStore {
         int currentVersion = expectedVersion;
         return database.run(tr -> {
             try {
-
                 // TODO: should we have a create/build db method that way we can just call open?
                 // What is the overhead of the create check?
                 // can we create directories/subspaces via cli?
-                //DirectorySubspace globalSubspace = DirectoryLayer.getDefault().createOrOpen(tr, GLOBAL_SUBPATH).get();
                 Subspace globalSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-
-
-                // DirectoryLayer.getDefault() does not allow manual prefixes
-                //DirectorySubspace streamSubspace = new DirectoryLayer().createOrOpen(tr, STREAM_SUBPATH).get();
-                // Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.toString()));
                 Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
-
-                // TODO: what to actually call this...inner stream doesn't really work
-                // streamSubspace.subspace(Tuple.from(streamHash.toString()));
-
-                // we are getting them in parallel
-                // aggregRecord := GetLastKeyFuture(tr, aggregSpace)
+                // TODO: can we do some of this stuff in parallel?
                 CompletableFuture<byte[]> streamRecord = getLastKeyFuture(tr, streamSubspace);
 
                 long nextStreamIndex = mustGetNextIndex(streamRecord, streamSubspace, 0);
-                //nextAggregIndex := aggregRecord.MustGetNextIndex(0)
 
                 for (int i = 0; i < messages.length; i++) {
-                // for (NewStreamMessage message : messages) {
-//                    aggregIndex := nextAggregIndex + i
-//
-//                    contract, data := evt.Payload()
-//
-//                    tr.Set(globalSpace.Sub(uuid, i, contract), data)
-//                    tr.Set(aggregSpace.Sub(aggregIndex, contract), data)
-
+                    // TODO: make this an atomic operation via MutationType
                     long streamIndex = nextStreamIndex + i;
 
                     // TODO: how should we store metadata
-                    //byte[] key = globalSubspace.packWithVersionstamp(Tuple.from(Versionstamp.incomplete()));
                     NewStreamMessage message = messages[i];
                     byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getJsonData()).pack();
-                    // tr.set(key, value);
 
                     Tuple t = Tuple.from(Versionstamp.incomplete(i));
-                    //tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, t.packWithVersionstamp(), value);
-                    // tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.pack(t.packWithVersionstamp()), value);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(t), value);
-
-
-                    //byte[] streamKey = streamSubspace.subspace(Tuple.from(streamHash.toString())).pack();
                     tr.set(streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
                 }
 
-
-                // TODO: may not need this. Might be able to use foundationdbs versionstamped key
-                UUID uuid = Generators.timeBasedGenerator().generate();
-
-                // tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY);
-
-//                CompletableFuture<byte[]> trVersionFuture = db.run((Transaction tr) -> {
-//                    // The incomplete Versionstamp will be overwritten with tr's version information when committed.
-//                    Tuple t = Tuple.from("prefix", Versionstamp.incomplete());
-//                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, t.packWithVersionstamp(), new byte[0]);
-//                    return tr.getVersionstamp();
-//                });
-//
-//                byte[] trVersion = trVersionFuture.get();
-//
-//                Versionstamp v = db.run((Transaction tr) -> {
-//                    Subspace subspace = new Subspace(Tuple.from("prefix"));
-//                    byte[] serialized = tr.getRange(subspace.range(), 1).iterator().next().getKey();
-//                    Tuple t = subspace.unpack(serialized);
-//                    return t.getVersionstamp(0);
-//                });
-//
-//                assert v.equals(Versionstamp.complete(trVersion));
-
-
-                // tr.set(subspace.subspace(uuid, i, contract), data)
-
-                // TODO: fix
                 return new AppendResult(0, 0L);
             } catch (InterruptedException|ExecutionException e) {
                 // TODO: what to actually do here
@@ -212,11 +155,7 @@ public class EventStoreLayer implements EventStore {
         return database.read(tr -> {
             Subspace globalSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
 
-            // byte[] start = ByteBuffer.allocate(4).putInt(fromPositionInclusive).array();
-            // byte[] end = ByteBuffer.allocate(4).putInt(Integer.MAX_VALUE).array();
-
             // TODO: look at the various streaming modes to determine best fit
-            //AsyncIterable<KeyValue> r = tr.getRange(new Range(start, end), maxCount, false, StreamingMode.EXACT);
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse, StreamingMode.EXACT);
 
             // TODO: how to get a slice?
@@ -225,14 +164,8 @@ public class EventStoreLayer implements EventStore {
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
-                    // for (KeyValue kv : kvs) {
                     byte[] key = kvs.get(i).getKey();
-                    LOG.info("key: {}", key);
                     Tuple t = globalSubspace.unpack(key);
-
-                    LOG.info("tuple {}", t);
-                    LOG.info("size of tuple: {}", t.size());
-                    LOG.info("value {}", kvs.get(i).getValue());
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
@@ -281,41 +214,19 @@ public class EventStoreLayer implements EventStore {
         HashCode streamHash = Hashing.murmur3_128().hashString(streamId, UTF_8);
         return database.read(tr -> {
             Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
-
-            byte[] start = ByteBuffer.allocate(4).putInt(fromVersionInclusive).array();
-            byte[] end = ByteBuffer.allocate(4).putInt(Integer.MAX_VALUE).array();
-
             // TODO: look at the various streaming modes to determine best fit
-            //AsyncIterable<KeyValue> r = tr.getRange(new Range(start, end), maxCount, false, StreamingMode.EXACT);
             AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.EXACT);
 
             // TODO: how to get a slice?
             try {
                 List<KeyValue> kvs = r.asList().get();
 
-//                String streamId,
-//                PageReadStatus status,
-//                int fromStreamVersion,
-//                int nextStreamVersion,
-//                int lastStreamVersion,
-//                long lastStreamPosition,
-//                ReadDirection readDirection,
-//                boolean isEnd,
-//                ReadNextStreamPage readNext
-
-
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
-                    // for (KeyValue kv : kvs) {
                     byte[] key = kvs.get(i).getKey();
-                    LOG.info("key {}", key);
                     Tuple t = streamSubspace.unpack(key);
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
-                    LOG.info("tuple {}", t);
-                    LOG.info("size of tuple: {}", t.size());
-                    LOG.info("first tuple is a long: {}", t.getLong(0));
-                    LOG.info("value ", kvs.get(i).getValue());
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
