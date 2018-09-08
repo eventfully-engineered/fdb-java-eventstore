@@ -11,7 +11,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -110,6 +109,22 @@ class EventStoreLayerTest {
     }
 
     @Test
+    public void readStreamForwardStreamNotFoundTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+
+            assertNotNull(forwardPage);
+            assertEquals(0, forwardPage.getMessages().length);
+            assertTrue(forwardPage.isEnd());
+            assertEquals(PageReadStatus.STREAM_NOT_FOUND, forwardPage.getStatus());
+        }
+    }
+
+    @Test
     public void readStreamForward() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
@@ -184,7 +199,6 @@ class EventStoreLayerTest {
             return null;
         });
     }
-
 
     private static NewStreamMessage[] createNewStreamMessages(int... messageNumbers) {
         return createNewStreamMessages("\"data\"", messageNumbers);

@@ -1,19 +1,11 @@
 package com.seancarroll;
 
-//import com.foundationdb.directory.DirectoryLayer;
-//import com.foundationdb.directory.DirectorySubspace;
-//import com.foundationdb.qp.operator.RowCursor;
-//import com.foundationdb.qp.row.Row;
-
 import com.apple.foundationdb.*;
 import com.apple.foundationdb.async.AsyncIterable;
-import com.apple.foundationdb.directory.Directory;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.uuid.Generators;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import org.joda.time.DateTime;
@@ -29,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+// https://github.com/jaytaylor/sql-layer
 // https://apple.github.io/foundationdb/developer-guide.html#namespace-management
 // https://eventstore.org/docs/dotnet-api/reading-events/index.html
 // https://github.com/apple/foundationdb/blob/master/design/tuple.md
@@ -124,16 +117,12 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public void deleteStream(String streamId, int expectedVersion) {
-        database.run(tr -> {
-            return null;
-        });
+        database.run(tr -> null);
     }
 
     @Override
     public void deleteMessage(String streamId, UUID messageId) {
-        database.run(tr -> {
-            return null;
-        });
+        database.run(tr -> null);
     }
 
     @Override
@@ -158,14 +147,25 @@ public class EventStoreLayer implements EventStore {
             // TODO: look at the various streaming modes to determine best fit
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse);
 
-            // TODO: how to get a slice?
             try {
+                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+
                 List<KeyValue> kvs = r.asList().get();
+                if (kvs.isEmpty()) {
+                    return new ReadAllPage(
+                        fromPositionInclusive,
+                        0L,
+                        false,
+                        direction,
+                        null,
+                        new StreamMessage[0]);
+                }
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
                     byte[] key = kvs.get(i).getKey();
                     Tuple t = globalSubspace.unpack(key);
+                    LOG.info("readAllInternal key: {}", t.get(0));
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
@@ -181,8 +181,6 @@ public class EventStoreLayer implements EventStore {
                     );
                     messages[i] = message;
                 }
-
-                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
                 return new ReadAllPage(
                     fromPositionInclusive,
@@ -217,9 +215,25 @@ public class EventStoreLayer implements EventStore {
             // TODO: look at the various streaming modes to determine best fit.
             AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.WANT_ALL);
 
-            // TODO: how to get a slice?
             try {
+
+                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+
                 List<KeyValue> kvs = r.asList().get();
+
+                if (kvs.isEmpty()) {
+                    return new ReadStreamPage(
+                        streamId,
+                        PageReadStatus.STREAM_NOT_FOUND,
+                        fromVersionInclusive,
+                        StreamVersion.END,
+                        StreamVersion.END,
+                        Position.END,
+                        direction,
+                        true,
+                        null,
+                        new StreamMessage[0]);
+                }
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
@@ -239,8 +253,6 @@ public class EventStoreLayer implements EventStore {
                     );
                     messages[i] = message;
                 }
-
-                ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
                 return new ReadStreamPage(
                     streamId,
@@ -283,7 +295,7 @@ public class EventStoreLayer implements EventStore {
 
 
     // this might be the same as getLastKeyFuture
-    // I dont really like passing in any subsapce and would like to constrain it if possible to ruscello subspaces
+    // I dont really like passing in any subsapce and would like to constrain it if possible to es subspaces
     // also dont know if we need to support getting head from both global and stream but it seems like a decent idea
     @Override
     public Long readHeadPosition(Transaction tr, Subspace subspace) throws ExecutionException, InterruptedException {
