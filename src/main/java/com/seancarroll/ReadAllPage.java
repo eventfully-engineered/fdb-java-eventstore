@@ -2,8 +2,6 @@ package com.seancarroll;
 
 import com.google.common.base.MoreObjects;
 
-import java.sql.SQLException;
-
 /**
  * This is from SqlStreamStore
  * EventStore has AllEventsSlice which contains ResolvedEvent[] events.
@@ -40,14 +38,6 @@ public class ReadAllPage {
      */
     private final StreamMessage[] messages;
 
-//    public ReadAllPage(
-//        long fromPosition,
-//        long nextPosition,
-//        boolean isEnd,
-//        ReadDirection direction) {
-//        this(fromPosition, nextPosition, isEnd, direction, null);
-//    }
-//
     /**
      * Initializes a new instance of {@link ReadAllPage }
      * @param fromPosition A long representing the position where this page was read from.
@@ -75,9 +65,8 @@ public class ReadAllPage {
     /**
      * Reads the next page
      * @return
-     * @throws SQLException
      */
-    public ReadAllPage readNext() throws SQLException {
+    public ReadAllPage readNext() {
         return readNext.get(nextPosition);
     }
 

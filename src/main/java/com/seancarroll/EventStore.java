@@ -3,7 +3,6 @@ package com.seancarroll;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
 
-import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -36,7 +35,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount) throws SQLException;
+    ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -44,7 +43,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount) throws SQLException;
+    ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -56,7 +55,7 @@ public interface EventStore {
     ReadStreamPage readStreamForwards(
         String streamId,
         int fromVersionInclusive,
-        int maxCount) throws SQLException;
+        int maxCount);
 
     /**
      *
@@ -67,7 +66,7 @@ public interface EventStore {
      */
     ReadStreamPage readStreamBackwards(String streamId,
                                        int fromVersionInclusive,
-                                       int maxCount) throws SQLException;
+                                       int maxCount);
 
 
     /**
@@ -81,7 +80,7 @@ public interface EventStore {
      * Gets the stream metadata
      * @param streamId The stream ID whose metadata is to be read.
      */
-    StreamMetadataResult getStreamMetadata(String streamId) throws SQLException;
+    StreamMetadataResult getStreamMetadata(String streamId);
 
 
 }
