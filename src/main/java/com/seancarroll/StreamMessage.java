@@ -3,7 +3,6 @@ package com.seancarroll;
 import com.google.common.base.MoreObjects;
 import org.joda.time.DateTime;
 
-import java.sql.SQLException;
 import java.util.UUID;
 
 public class StreamMessage {
@@ -16,7 +15,6 @@ public class StreamMessage {
     private final String streamId;
     private final String type;
     private final String jsonData;
-    //private final GetJsonData getJsonData;
 
     public StreamMessage (
         String streamId,
@@ -26,8 +24,7 @@ public class StreamMessage {
         DateTime createdUtc,
         String type,
         String jsonMetadata,
-        String jsonData
-        /*GetJsonData getJsonData*/) {
+        String jsonData) {
         this.streamId = streamId;
         this.messageId = messageId;
         this.streamVersion = streamVersion;
@@ -36,7 +33,6 @@ public class StreamMessage {
         this.type = type;
         this.jsonMetadata = jsonMetadata;
         this.jsonData = jsonData;
-        //this.getJsonData = getJsonData;
     }
 
     public long getPosition() {
@@ -66,11 +62,6 @@ public class StreamMessage {
     public String getType() {
         return type;
     }
-
-//    public String getJsonData() throws SQLException {
-//        return getJsonData.get();
-//    }
-
 
     public String getJsonData() {
         return jsonData;
