@@ -156,7 +156,7 @@ public class EventStoreLayer implements EventStore {
             Subspace globalSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
 
             // TODO: look at the various streaming modes to determine best fit
-            AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse, StreamingMode.EXACT);
+            AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse);
 
             // TODO: how to get a slice?
             try {
@@ -214,8 +214,8 @@ public class EventStoreLayer implements EventStore {
         HashCode streamHash = Hashing.murmur3_128().hashString(streamId, UTF_8);
         return database.read(tr -> {
             Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
-            // TODO: look at the various streaming modes to determine best fit
-            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.EXACT);
+            // TODO: look at the various streaming modes to determine best fit.
+            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.WANT_ALL);
 
             // TODO: how to get a slice?
             try {
@@ -262,11 +262,9 @@ public class EventStoreLayer implements EventStore {
         });
     }
 
-
     public CompletableFuture<byte[]> getLastKeyFuture(Transaction tr, Subspace subspace) {
         return tr.getKey(KeySelector.lastLessThan(subspace.range().end));
     }
-
 
     public long mustGetNextIndex(CompletableFuture<byte[]> key, Subspace subspace, int position) throws ExecutionException, InterruptedException {
         byte[] k = key.get();
