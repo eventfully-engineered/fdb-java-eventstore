@@ -108,9 +108,23 @@ class EventStoreLayerTest {
         }
     }
 
+    @Test
+    public void readAllForwardMultipleStreamTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
 
-    // TODO: test for reading multiple streams forward
-    // TODO: test for reading multiple streams backwards
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
+
+            ReadAllPage forwardPage = es.readAllForwards(0, 4);
+            assertNotNull(forwardPage);
+            assertEquals(4, forwardPage.getMessages().length);
+            assertFalse(forwardPage.isEnd());
+        }
+    }
 
     @Test
     public void readAllBackwardsTest() {
@@ -130,6 +144,27 @@ class EventStoreLayerTest {
             assertEquals(1, backwardPage.getMessages().length);
             assertFalse(backwardPage.isEnd());
             assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
+        }
+    }
+
+
+    @Test
+    public void readAllBackwardsMultipleStreamTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
+
+            ReadAllPage forwardPage = es.readAllBackwards(0, 4);
+
+            assertNotNull(forwardPage);
+            assertEquals(4, forwardPage.getMessages().length);
+            assertFalse(forwardPage.isEnd());
+
         }
     }
 
