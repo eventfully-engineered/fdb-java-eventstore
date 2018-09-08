@@ -25,12 +25,8 @@ class EventStoreLayerTest {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             db.run((Transaction tr) -> {
-                try {
-                    DirectorySubspace ruscelloSubspace = new DirectoryLayer(true).createOrOpen(tr, Arrays.asList("ruscello")).get();
-                    tr.clear(ruscelloSubspace.range());
-                } catch (InterruptedException|ExecutionException e) {
-                    e.printStackTrace();
-                }
+                DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+                tr.clear(eventStoreSubspace.range());
                 return null;
             });
         }
@@ -40,8 +36,8 @@ class EventStoreLayerTest {
     public void readAllForwardTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -59,8 +55,8 @@ class EventStoreLayerTest {
     public void readAllForwardMultipleStreamTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -77,8 +73,8 @@ class EventStoreLayerTest {
     public void readAllBackwardsTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -97,8 +93,8 @@ class EventStoreLayerTest {
     public void readAllBackwardsMultipleStreamTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -117,8 +113,8 @@ class EventStoreLayerTest {
     public void readStreamForward() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -136,8 +132,8 @@ class EventStoreLayerTest {
     public void readStreamBackwards() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -155,14 +151,14 @@ class EventStoreLayerTest {
     public void readHeadPosition() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace ruscelloSubspace = createRuscelloSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, ruscelloSubspace);
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             long headPosition = db.run((Transaction tr) -> {
-                Subspace globalSubspace = ruscelloSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
                 try {
                     // TODO: hmmm....this is a versionstamp. how to store position
                     return es.readHeadPosition(tr, globalSubspace);
@@ -178,15 +174,15 @@ class EventStoreLayerTest {
         }
     }
 
-    private static DirectorySubspace createRuscelloSubspace(Database db) {
+    private static DirectorySubspace createEventStoreSubspace(Database db) {
         return db.run((Transaction tr) -> {
-                try {
-                    return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("ruscello")).get();
-                } catch (InterruptedException|ExecutionException e) {
-                    e.printStackTrace();
-                }
-                return null;
-            });
+            try {
+                return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("es")).get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
     }
 
 
