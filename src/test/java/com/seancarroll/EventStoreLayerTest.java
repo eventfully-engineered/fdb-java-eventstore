@@ -7,9 +7,9 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -20,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EventStoreLayerTest {
 
-    @BeforeAll
-    public static void clean() {
+    @BeforeEach
+    public void clean() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             db.run((Transaction tr) -> {
@@ -31,7 +31,6 @@ class EventStoreLayerTest {
             });
         }
     }
-
 
     @Test
     public void readAllForwardTest() {
@@ -175,59 +174,55 @@ class EventStoreLayerTest {
         }
     }
 
-//    @Test
-//    public void readHeadPositionNoStreams() {
-//        FDB fdb = FDB.selectAPIVersion(520);
-//        try (Database db = fdb.open()) {
-//            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-//            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-//
-//            Versionstamp headPosition = db.run((Transaction tr) -> {
-//                Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-//                try {
-//                    // TODO: hmmm....this is a versionstamp. how to store position
-//                    return es.readHeadPosition(tr, globalSubspace);
-//
-//                } catch (Exception e) {
-//                    System.out.println(e);
-//                    throw new RuntimeException();
-//                }
-//            });
-//
-//            System.out.println(headPosition);
-//            //assertEquals(5L, headPosition, 0);
-//            fail("not implemented");
-//
-//        }
-//    }
-//
-//    @Test
-//    public void readHeadPosition() {
-//        FDB fdb = FDB.selectAPIVersion(520);
-//        try (Database db = fdb.open()) {
-//            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-//            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-//
-//            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-//            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-//
-//            Versionstamp headPosition = db.run((Transaction tr) -> {
-//                Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-//                try {
-//                    // TODO: hmmm....this is a versionstamp. how to store position
-//                    return es.readHeadPosition(tr, globalSubspace);
-//
-//                } catch (Exception e) {
-//                    System.out.println(e);
-//                    throw new RuntimeException();
-//                }
-//            });
-//
-//            //assertEquals(5L, headPosition, 0);
-//            fail("not implemented");
-//
-//        }
-//    }
+    @Test
+    public void readHeadPositionNoStreams() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            StreamId streamId = new StreamId("non-existext-stream");
+
+            Long headPosition = db.run((Transaction tr) -> {
+                Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
+                try {
+                    return es.readHeadPosition(tr, streamSubspace);
+                } catch (Exception e) {
+                    System.out.println(e);
+                    throw new RuntimeException();
+                }
+            });
+
+            assertEquals(0L, headPosition.longValue());
+
+        }
+    }
+
+    @Test
+    public void readHeadPosition() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            StreamId streamId = new StreamId("test-stream");
+
+            long headPosition = db.run((Transaction tr) -> {
+                Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
+                try {
+                    return es.readHeadPosition(tr, streamSubspace);
+                } catch (Exception e) {
+                    System.out.println(e);
+                    throw new RuntimeException();
+                }
+            });
+
+            assertEquals(4L, headPosition);
+        }
+    }
 
     private static DirectorySubspace createEventStoreSubspace(Database db) {
         return db.run((Transaction tr) -> {
@@ -252,5 +247,5 @@ class EventStoreLayerTest {
         }
         return newMessages;
     }
-    
+
 }
