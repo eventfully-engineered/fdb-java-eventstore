@@ -12,31 +12,31 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class StreamId {
 
     // TODO: how about we juse id and hash?
-    private final String originalId;
     private final String id;
+    private final String hash;
 
-    public StreamId(String originalId) {
-        Preconditions.checkNotNull(originalId);
-        if (StringUtils.containsWhitespace(originalId)) {
+    public StreamId(String id) {
+        Preconditions.checkNotNull(id);
+        if (StringUtils.containsWhitespace(id)) {
             throw new IllegalArgumentException("value must not contain whitespace");
         }
-        this.originalId = originalId;
+        this.id = id;
 
         // new String(Hashing.murmur3_128().hashString(originalId, StandardCharsets.UTF_8).asBytes(), StandardCharsets.UTF_8)
-        this.id = Hashing.murmur3_128().hashString(originalId, UTF_8).toString();
-    }
-
-    public String getOriginalId() {
-        return originalId;
+        this.hash = Hashing.murmur3_128().hashString(id, UTF_8).toString();
     }
 
     public String getId() {
         return id;
     }
 
+    public String getHash() {
+        return hash;
+    }
+
     @Override
     public int hashCode() {
-        return Objects.hash(originalId, id);
+        return Objects.hash(id, hash);
     }
 
     @Override
@@ -48,7 +48,7 @@ public class StreamId {
         if (getClass() != obj.getClass())
             return false;
         StreamId other = (StreamId) obj;
-        return originalId.equals(other.originalId) && id.equals(other.id);
+        return id.equals(other.id) && hash.equals(other.hash);
     }
 
 
