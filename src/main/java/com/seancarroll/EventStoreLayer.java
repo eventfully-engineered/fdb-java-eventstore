@@ -86,7 +86,7 @@ public class EventStoreLayer implements EventStore {
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getJsonData()).pack();
+                    byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getJsonData(), message.getJsonMetadata()).pack();
 
                     Tuple t = Tuple.from(Versionstamp.incomplete(i));
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(t), value);
@@ -135,7 +135,6 @@ public class EventStoreLayer implements EventStore {
 
             // TODO: look at the various streaming modes to determine best fit
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse);
-
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
@@ -165,8 +164,8 @@ public class EventStoreLayer implements EventStore {
                         0L,
                         DateTime.now(),
                         tupleValue.getString(2),
-                        "",
-                        tupleValue.getString(2)
+                        tupleValue.getString(4),
+                        tupleValue.getString(3)
                     );
                     messages[i] = message;
                 }
@@ -236,9 +235,9 @@ public class EventStoreLayer implements EventStore {
                         0,
                         0L,
                         DateTime.now(),
-                        "type",
-                        "",
-                        new String(kvs.get(i).getValue())
+                        tupleValue.getString(2),
+                        tupleValue.getString(4),
+                        tupleValue.getString(3)
                     );
                     messages[i] = message;
                 }
