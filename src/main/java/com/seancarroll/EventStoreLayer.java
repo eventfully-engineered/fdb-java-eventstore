@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -52,11 +51,8 @@ public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
 
-    private static final List<String> GLOBAL_SUBPATH = Arrays.asList(EventStoreSubspaces.GLOBAL.getValue());
-    private static final List<String> STREAM_SUBPATH = Arrays.asList(EventStoreSubspaces.STREAM.getValue());
-
     private final Database database;
-    private final DirectorySubspace directorySubspace;
+    private final DirectorySubspace esSubspace;
 
 
     // instead of subspace should we pass in a string which represents the default content subspace aka prefix
@@ -65,14 +61,12 @@ public class EventStoreLayer implements EventStore {
     // directorysubspace must allow manual prefixes
     public EventStoreLayer(Database database, DirectorySubspace subspace) {
         this.database = database;
-        this.directorySubspace = subspace;
+        this.esSubspace = subspace;
     }
 
     @Override
     public AppendResult appendToStream(String streamId, int expectedVersion, NewStreamMessage[] messages) {
-
-        HashCode streamHash = Hashing.murmur3_128().hashString(streamId, UTF_8);
-        Tuple.from(streamHash + "@" + expectedVersion).pack();
+        HashCode streamHash = createHash(streamId);
 
         // TODO: query last tuple in stream to get latest version
         // TODO: how does foundationdb handle conflicting keys, optimistic/pessimistic locking
@@ -83,8 +77,8 @@ public class EventStoreLayer implements EventStore {
                 // TODO: should we have a create/build db method that way we can just call open?
                 // What is the overhead of the create check?
                 // can we create directories/subspaces via cli?
-                Subspace globalSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-                Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
                 // TODO: can we do some of this stuff in parallel?
                 CompletableFuture<byte[]> streamRecord = getLastKeyFuture(tr, streamSubspace);
@@ -142,7 +136,7 @@ public class EventStoreLayer implements EventStore {
 
     private ReadAllPage readAllInternal(long fromPositionInclusive, int maxCount, boolean reverse) {
         return database.read(tr -> {
-            Subspace globalSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+            Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
 
             // TODO: look at the various streaming modes to determine best fit
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse);
@@ -209,9 +203,9 @@ public class EventStoreLayer implements EventStore {
     }
 
     private ReadStreamPage readStreamInternal(String streamId, int fromVersionInclusive, int maxCount, boolean reverse) {
-        HashCode streamHash = Hashing.murmur3_128().hashString(streamId, UTF_8);
+        HashCode streamHash = createHash(streamId);
         return database.read(tr -> {
-            Subspace streamSubspace = directorySubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+            Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
             // TODO: look at the various streaming modes to determine best fit.
             AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.WANT_ALL);
 
@@ -323,5 +317,9 @@ public class EventStoreLayer implements EventStore {
     @Override
     public StreamMetadataResult getStreamMetadata(String streamId) {
         return null;
+    }
+
+    private static HashCode createHash(String streamId) {
+        return Hashing.murmur3_128().hashString(streamId, UTF_8);
     }
 }
