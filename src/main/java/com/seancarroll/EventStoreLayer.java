@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -80,14 +79,10 @@ public class EventStoreLayer implements EventStore {
                 Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
                 Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
-                // TODO: can we do some of this stuff in parallel?
-                CompletableFuture<byte[]> streamRecord = getLastKeyFuture(tr, streamSubspace);
-
-                long nextStreamIndex = mustGetNextIndex(streamRecord, streamSubspace, 0);
-
+                long readPosition = readHeadPosition(tr, streamSubspace);
                 for (int i = 0; i < messages.length; i++) {
                     // TODO: make this an atomic operation via MutationType
-                    long streamIndex = nextStreamIndex + i;
+                    long streamIndex = readPosition + i;
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
@@ -99,7 +94,7 @@ public class EventStoreLayer implements EventStore {
                 }
 
                 return new AppendResult(0, 0L);
-            } catch (InterruptedException|ExecutionException e) {
+            } catch (Exception e) {
                 // TODO: what to actually do here
                 LOG.error("error appending to stream", e);
             }
@@ -268,32 +263,11 @@ public class EventStoreLayer implements EventStore {
         });
     }
 
-    public CompletableFuture<byte[]> getLastKeyFuture(Transaction tr, Subspace subspace) {
-        return tr.getKey(KeySelector.lastLessThan(subspace.range().end));
-    }
-
-    public long mustGetNextIndex(CompletableFuture<byte[]> key, Subspace subspace, int position) throws ExecutionException, InterruptedException {
-        byte[] k = key.get();
-
-        if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(subspace.range().begin)) < 0) {
-            return 0;
-        }
-
-        Tuple t = subspace.unpack(k);
-        if (t == null) {
-            throw new RuntimeException("failed to unpack key");
-        }
-
-        return t.getLong(0) + 1;
-    }
-
-
-    // this might be the same as getLastKeyFuture
+    // TODO: Need to be consistent with what we call "position" vs what we call "version"
     // I dont really like passing in any subsapce and would like to constrain it if possible to es subspaces
     // also dont know if we need to support getting head from both global and stream but it seems like a decent idea
     @Override
     public Long readHeadPosition(Transaction tr, Subspace subspace) throws ExecutionException, InterruptedException {
-
         byte[] k = tr.getKey(KeySelector.lastLessThan(subspace.range().end)).get();
 
         if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(subspace.range().begin)) < 0) {
@@ -305,13 +279,7 @@ public class EventStoreLayer implements EventStore {
             throw new RuntimeException("failed to unpack key");
         }
 
-        LOG.info("versionstamp {}", t.getVersionstamp(0).toString());
-        LOG.info("versionstamp bytes {}", t.getVersionstamp(0).getBytes());
-        LOG.info("versionstamp as long {}", ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong());
-        LOG.info("committedversion {}", tr.getCommittedVersion());
-        // return t.getLong(0) + 1;
-        // return t.getLong(0);
-        return ByteBuffer.wrap(t.getVersionstamp(0).getBytes()).getLong();
+        return t.getLong(0);
     }
 
     @Override
