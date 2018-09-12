@@ -69,6 +69,10 @@ public interface EventStore {
                                        int maxCount);
 
 
+    // TODO: this was designed to get the very last message in the event store which is not how this codebase is using it
+    // Should we remove for now?
+    // The shape of this to match the actual use case would be to return the latest versionstamp from the global subspace
+    // which shouldn't require any parameters to be passed it.
     /**
      * Reads the head position (the position of the very latest message).
      * @return the head position

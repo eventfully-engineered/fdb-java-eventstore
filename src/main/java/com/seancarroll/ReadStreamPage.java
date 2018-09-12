@@ -76,9 +76,18 @@ public class ReadStreamPage {
         long lastStreamPosition,
         ReadDirection readDirection,
         boolean isEnd,
-        ReadNextStreamPage readNext)
-    {
-        this(streamId, status, fromStreamVersion, nextStreamVersion, lastStreamVersion, lastStreamPosition, readDirection, isEnd, readNext, null);
+        ReadNextStreamPage readNext) {
+
+        this(streamId,
+            status,
+            fromStreamVersion,
+            nextStreamVersion,
+            lastStreamVersion,
+            lastStreamPosition,
+            readDirection,
+            isEnd,
+            readNext,
+            null);
     }
 
     /**
@@ -103,8 +112,8 @@ public class ReadStreamPage {
         ReadDirection readDirection,
         boolean isEnd,
         ReadNextStreamPage readNext,
-        StreamMessage[] messages)
-    {
+        StreamMessage[] messages) {
+
         this.streamId = streamId;
         this.status = status;
         this.fromStreamVersion = fromStreamVersion;
