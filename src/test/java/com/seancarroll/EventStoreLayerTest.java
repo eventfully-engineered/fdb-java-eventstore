@@ -8,7 +8,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// TODO: clean up tests
 class EventStoreLayerTest {
 
     @BeforeEach
@@ -31,6 +31,53 @@ class EventStoreLayerTest {
             });
         }
     }
+
+    @Test
+    public void versionTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage forwardPage = es.readAllForwards(0, 2);
+            assertNotNull(forwardPage);
+            assertEquals(2, forwardPage.getMessages().length);
+            assertFalse(forwardPage.isEnd());
+            assertEquals("type", forwardPage.getMessages()[0].getType());
+            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+
+        }
+    }
+
+//    @Test
+//    public void versionTest2() {
+//        FDB fdb = FDB.selectAPIVersion(520);
+//        try (Database db = fdb.open()) {
+//            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+//            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+//
+//            NewStreamMessage[] messages = createNewStreamMessages(1);
+//            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+//
+//            ReadAllPage forwardPage = es.readAllForwards(0, 1);
+//            assertNotNull(forwardPage);
+//            assertEquals(1, forwardPage.getMessages().length);
+//            assertFalse(forwardPage.isEnd());
+//            assertEquals("type", forwardPage.getMessages()[0].getType());
+//            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+//            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+//            System.out.println(forwardPage.getMessages()[0].getPosition());
+//
+//            ReadStreamPage streamPage = es.readStreamForwards("test-stream", 0, 1);
+//            System.out.println(streamPage.getMessages()[0].getPosition());
+//
+//        }
+//    }
+
 
     @Test
     public void readAllForwardTest() {
@@ -47,7 +94,7 @@ class EventStoreLayerTest {
             assertEquals(1, forwardPage.getMessages().length);
             assertFalse(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(forwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
         }
     }
@@ -68,7 +115,7 @@ class EventStoreLayerTest {
             assertEquals(4, forwardPage.getMessages().length);
             assertFalse(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(forwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
         }
     }
 
@@ -89,7 +136,7 @@ class EventStoreLayerTest {
             assertFalse(backwardPage.isEnd());
             assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
             assertEquals("type", backwardPage.getMessages()[0].getType());
-            assertTrue(backwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
         }
     }
 
@@ -111,7 +158,7 @@ class EventStoreLayerTest {
             assertEquals(4, forwardPage.getMessages().length);
             assertFalse(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(forwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
 
         }
     }
@@ -149,7 +196,7 @@ class EventStoreLayerTest {
             assertFalse(forwardPage.isEnd());
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
             assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(forwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
         }
     }
 
@@ -170,7 +217,7 @@ class EventStoreLayerTest {
             assertFalse(backwardPage.isEnd());
             assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
             assertEquals("type", backwardPage.getMessages()[0].getType());
-            assertTrue(backwardPage.getMessages()[0].getJsonMetadata().contains("metadata"));
+            assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
         }
     }
 
@@ -243,9 +290,40 @@ class EventStoreLayerTest {
         NewStreamMessage[] newMessages = new NewStreamMessage[messageNumbers.length];
         for (int i = 0; i < messageNumbers.length; i++) {
             UUID id = UUID.fromString(StringUtils.leftPad("00000000-0000-0000-0000-" + String.valueOf(messageNumbers[i]), 12, "0"));
-            newMessages[i] = new NewStreamMessage(id, "type", jsonData, "\"metadata\"");
+            newMessages[i] = new NewStreamMessage(id, "type", jsonData.getBytes(), "\"metadata\"".getBytes());
         }
         return newMessages;
     }
+
+
+//    @Test
+//    public void compareReadingHeadPosition() {
+//        FDB fdb = FDB.selectAPIVersion(520);
+//        try (Database db = fdb.open()) {
+//            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+//            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+//
+//            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+//            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+//
+//            Versionstamp headPosition = db.run((Transaction tr) -> {
+//                Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+//                try {
+//                    // TODO: hmmm....this is a versionstamp. how to store position
+//                    Versionstamp hp1 = es.readHeadPosition(tr, globalSubspace);
+//                    Versionstamp hp2 = Versionstamp.fromBytes(tr.getVersionstamp().get());
+//
+//                    int comparison = hp1.compareTo(hp2);
+//                } catch (Exception e) {
+//                    System.out.println(e);
+//                    throw new RuntimeException();
+//                }
+//
+//                return null;
+//            });
+//
+//
+//        }
+//    }
 
 }

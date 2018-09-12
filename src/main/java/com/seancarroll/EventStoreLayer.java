@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutionException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+// use Long.parseUnsignedLong
 // https://github.com/jaytaylor/sql-layer
 // https://apple.github.io/foundationdb/developer-guide.html#namespace-management
 // https://eventstore.org/docs/dotnet-api/reading-events/index.html
@@ -43,9 +44,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // TODO: where should we store stream metadata?
 // TODO: whats a common pattern for FoundationDB layers?
 // - Should you have clients pass in a transaction?
-// - Should our operations create their own trasnaction? If so how can clients make sure everything is one atomic transaction?
+// - Should our operations create their own transaction? If so how can clients make sure everything is one atomic transaction?
 // - Should clients pass in their on directory/subspace?
-// - How do we want to handle position in global vs stream supspace?
+// - How do we want to handle position in global vs stream subspace?
 public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
@@ -79,18 +80,32 @@ public class EventStoreLayer implements EventStore {
                 Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
                 Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
-                long readPosition = readHeadPosition(tr, streamSubspace);
+//                long readPosition = readHeadPosition(tr, streamSubspace);
+                ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+
+                // TODO: can we remove position from page? I dont think position is what we are looking for.
+                // or this could be the versionstamp from the global stream? not sure if thats useful?
+                // TODO: change to backwardPage.getNextStreamVersion() or maybe backwardPage.getLastStreamVersion()
+                long streamPosition = backwardPage.getMessages().length == 0
+                    ? 0
+                    : backwardPage.getMessages()[0].getPosition();
+
                 for (int i = 0; i < messages.length; i++) {
                     // TODO: make this an atomic operation via MutationType
-                    long streamIndex = readPosition + i;
+                    long streamIndex = streamPosition + i;
+
+                    Tuple t = Tuple.from(Versionstamp.incomplete(i));
+                    byte[] vs = globalSubspace.packWithVersionstamp(t);
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getJsonData(), message.getJsonMetadata()).pack();
+                    byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata()).pack();
 
-                    Tuple t = Tuple.from(Versionstamp.incomplete(i));
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(t), value);
+                    // TODO: could this also be used in the tuple above? Would we get the same value?
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, vs, value);
                     tr.set(streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
+                    // getting invalid API call when attempting this
+                    // tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
                 }
 
                 return new AppendResult(0, 0L);
@@ -164,10 +179,12 @@ public class EventStoreLayer implements EventStore {
                         0L,
                         DateTime.now(),
                         tupleValue.getString(2),
-                        tupleValue.getString(4),
-                        tupleValue.getString(3)
+                        tupleValue.getBytes(4),
+                        tupleValue.getBytes(3)
                     );
                     messages[i] = message;
+
+                   // LOG.info("readAllInternal value versionstamp {}", tupleValue.getVersionstamp(5));
                 }
 
                 return new ReadAllPage(
@@ -236,10 +253,12 @@ public class EventStoreLayer implements EventStore {
                         0L,
                         DateTime.now(),
                         tupleValue.getString(2),
-                        tupleValue.getString(4),
-                        tupleValue.getString(3)
+                        tupleValue.getBytes(4),
+                        tupleValue.getBytes(3)
                     );
                     messages[i] = message;
+
+                    //LOG.info("readStreamInternal value versionstamp {}", tupleValue.getVersionstamp(5));
                 }
 
                 return new ReadStreamPage(

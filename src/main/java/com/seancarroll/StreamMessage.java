@@ -10,11 +10,11 @@ public class StreamMessage {
     private final long position;
     private final DateTime createdUtc;
     private final UUID messageId;
-    private final String jsonMetadata;
+    private final byte[] metadata;
     private final int streamVersion;
     private final String streamId;
     private final String type;
-    private final String jsonData;
+    private final byte[] data;
 
     public StreamMessage (
         String streamId,
@@ -23,16 +23,17 @@ public class StreamMessage {
         long position,
         DateTime createdUtc,
         String type,
-        String jsonMetadata,
-        String jsonData) {
+        byte[] metadata,
+        byte[] data) {
+
         this.streamId = streamId;
         this.messageId = messageId;
         this.streamVersion = streamVersion;
         this.position = position;
         this.createdUtc = createdUtc;
         this.type = type;
-        this.jsonMetadata = jsonMetadata;
-        this.jsonData = jsonData;
+        this.metadata = metadata;
+        this.data = data;
     }
 
     public long getPosition() {
@@ -47,8 +48,8 @@ public class StreamMessage {
         return messageId;
     }
 
-    public String getJsonMetadata() {
-        return jsonMetadata;
+    public byte[] getMetadata() {
+        return metadata;
     }
 
     public int getStreamVersion() {
@@ -63,8 +64,8 @@ public class StreamMessage {
         return type;
     }
 
-    public String getJsonData() {
-        return jsonData;
+    public byte[] getData() {
+        return data;
     }
 
     @Override
