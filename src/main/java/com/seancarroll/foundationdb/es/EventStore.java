@@ -1,4 +1,4 @@
-package com.seancarroll;
+package com.seancarroll.foundationdb.es;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;

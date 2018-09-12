@@ -1,4 +1,4 @@
-package com.seancarroll;
+package com.seancarroll.foundationdb.es;
 
 public class StreamNotFoundException extends RuntimeException {
 

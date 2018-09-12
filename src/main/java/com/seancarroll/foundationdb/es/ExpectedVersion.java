@@ -1,4 +1,4 @@
-package com.seancarroll;
+package com.seancarroll.foundationdb.es;
 
 /**
  * Not sure I completely dig this...lets see if it grows on me.
