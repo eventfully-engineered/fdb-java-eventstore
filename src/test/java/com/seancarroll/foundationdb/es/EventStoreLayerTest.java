@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.*;
 
 // TODO: clean up tests
-class EventStoreLayerTest {
+public class EventStoreLayerTest {
 
     @BeforeEach
     public void clean() {
