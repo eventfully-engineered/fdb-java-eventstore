@@ -161,7 +161,7 @@ public class EventStoreLayer implements EventStore {
                         false,
                         direction,
                         null,
-                        new StreamMessage[0]);
+                        Empty.STREAM_MESSAGES);
                 }
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
@@ -237,7 +237,7 @@ public class EventStoreLayer implements EventStore {
                         direction,
                         true,
                         null,
-                        new StreamMessage[0]);
+                        Empty.STREAM_MESSAGES);
                 }
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
