@@ -1,12 +1,11 @@
 package com.seancarroll;
 
-// rather than subspaces could we them prefix instead?
-// not a huge fan of aggregate...what about stream?
-// what about keyspaces? GLOBAL vs STREAM?
 public enum EventStoreSubspaces {
 
     GLOBAL("0"),
-    STREAM("1");
+    STREAM("1"),
+    // TODO: do we need this?
+    METADATA("2");
 
     private final String value;
 
