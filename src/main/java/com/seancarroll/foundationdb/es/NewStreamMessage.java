@@ -5,16 +5,6 @@ import com.google.common.base.Preconditions;
 
 import java.util.UUID;
 
-// TODO: check out namespace EventStore.Core.Data
-// in particular
-/*
-  var size = Data == null ? 0 : Data.Length;
-            size += Metadata == null ? 0 : Metadata.Length;
-            size += eventType.Length * 2;
-
-            if( size > TFConsts.MaxLogRecordSize - 10000)
-                throw new ArgumentException("Record is too big", "data");
- */
 public class NewStreamMessage {
 
     // TODO: define an empty byte[]
