@@ -122,7 +122,7 @@ public class ReadStreamPage {
         this.nextStreamVersion = nextStreamVersion;
         this.readDirection = readDirection;
         this.isEnd = isEnd;
-        this.messages = messages == null ? new StreamMessage[0] : messages;
+        this.messages = messages == null ? Empty.STREAM_MESSAGES : messages;
         this.readNext = readNext;
     }
 

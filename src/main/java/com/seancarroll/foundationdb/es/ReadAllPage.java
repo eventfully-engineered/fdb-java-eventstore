@@ -58,8 +58,7 @@ public class ReadAllPage {
         this.isEnd = isEnd;
         this.readDirection = readDirection;
         this.readNext = readNext;
-        // TODO: use empty constant?
-        this.messages = messages == null ? new StreamMessage[0] : messages;
+        this.messages = messages == null ? Empty.STREAM_MESSAGES : messages;
     }
 
     /**
