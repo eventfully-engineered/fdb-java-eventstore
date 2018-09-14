@@ -93,7 +93,7 @@ public class ReadStreamPage {
     /**
      *
      * @param streamId - The id of the stream that was read.
-     * @param status - The <see cref="PageReadStatus"/> of the read operation.
+     * @param status - The {@link PageReadStatus} of the read operation.
      * @param fromStreamVersion - The version of the stream that read from.
      * @param nextStreamVersion - The next message version that can be read.
      * @param lastStreamVersion - The version of the last message in the stream.
