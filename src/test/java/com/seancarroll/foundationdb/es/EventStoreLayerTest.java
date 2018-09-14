@@ -1,12 +1,12 @@
 package com.seancarroll.foundationdb.es;
 
-import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
+import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -325,5 +325,154 @@ public class EventStoreLayerTest {
 //
 //        }
 //    }
+
+
+    @Test
+    public void versionstampValue() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+
+            db.run(tr -> {
+                try {
+                    Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                    Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), new StreamId("test-stream").getHash()));
+
+                    Versionstamp vs = Versionstamp.incomplete(1);
+                    Tuple t = Tuple.from(Versionstamp.incomplete(1));
+                    byte[] vsBytes = globalSubspace.packWithVersionstamp(t);
+
+                    // TODO: how should we store metadata
+                    NewStreamMessage message = createNewStreamMessages(1)[0];
+                    byte[] value = Tuple.from(message.getMessageId(), "test-stream", message.getType(), message.getData(), message.getMetadata(), vs).packWithVersionstamp();
+
+
+
+                    // TODO: could this also be used in the tuple above? Would we get the same value?
+                    // tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, vs, value);
+                    // tr.set(streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
+                    // getting invalid API call when attempting this
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from("test-stream")).pack(), value);
+
+                } catch (Exception ex) {
+                    System.out.println(ex);
+                }
+
+                return null;
+            });
+
+
+            db.read(tr -> {
+                es.readAllForwards(0, 1);
+                ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+                System.out.println(forwardPage.getMessages()[0]);
+                return null;
+            });
+        }
+    }
+
+
+    @Test
+    public void versionstampValue2() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+
+            db.run(tr -> {
+                try {
+                    Subspace globalSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                    Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), new StreamId("test-stream").getHash()));
+
+                    Versionstamp vs = Versionstamp.incomplete(1);
+                    Tuple t = Tuple.from(Versionstamp.incomplete(1));
+                    byte[] vsBytes = globalSubspace.packWithVersionstamp(t);
+
+                    // TODO: how should we store metadata
+                    NewStreamMessage message = createNewStreamMessages(1)[0];
+                    byte[] value = Tuple.from(message.getMessageId(), "test-stream", message.getType(), message.getData(), message.getMetadata(), vs).packWithVersionstamp();
+
+
+
+                    // TODO: could this also be used in the tuple above? Would we get the same value?
+                    // tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, vs, value);
+                    // tr.set(streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
+                    // getting invalid API call when attempting this
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from("test-stream")).pack(), value);
+
+                } catch (Exception ex) {
+                    System.out.println(ex);
+                }
+
+                return null;
+            });
+
+
+            db.read(tr -> {
+                es.readAllForwards(0, 1);
+                ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+                System.out.println(forwardPage.getMessages()[0]);
+                return null;
+            });
+        }
+    }
+
+
+
+
+    @Test
+    public void usingSameVersionstampMultipleTimesTest() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace directorySubspace = createEventStoreSubspace(db);
+
+            Subspace subspaceOne = directorySubspace.subspace(Tuple.from("1"));
+            Subspace subspaceTwo = directorySubspace.subspace(Tuple.from("2"));
+
+            db.run(tr -> {
+                try {
+                    Versionstamp versionstamp = Versionstamp.incomplete(1);
+                    Tuple t = Tuple.from(versionstamp);
+
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, subspaceOne.packWithVersionstamp(t), Tuple.from("subspace One value").pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, subspaceTwo.subspace(Tuple.from("subspace2 key")).pack(), Tuple.from("subspace2FirstValue", versionstamp).packWithVersionstamp());
+
+                } catch (Exception ex) {
+                    System.out.println(ex);
+                }
+
+                return null;
+            });
+
+
+            db.read(tr -> {
+                try {
+                    KeyValue subspaceOneKeyValue = tr.getRange(subspaceOne.range(), 1, false).asList().get().get(0);
+                    KeyValue subspaceTwoKeyValue = tr.getRange(subspaceTwo.range(), 1, false).asList().get().get(0);
+
+                    System.out.println("subspaceOne key: " + subspaceOne.unpack(subspaceOneKeyValue.getKey()));
+                    System.out.println("subspaceTwo value: " + Tuple.fromBytes(subspaceTwoKeyValue.getValue()));
+
+                    assertEquals(subspaceOne.unpack(subspaceOneKeyValue.getKey()).getVersionstamp(0), Tuple.fromBytes(subspaceTwoKeyValue.getValue()).getVersionstamp(1));
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+
+                return null;
+            });
+        }
+    }
 
 }

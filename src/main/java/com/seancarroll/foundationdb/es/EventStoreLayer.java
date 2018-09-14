@@ -14,11 +14,16 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+// https://github.com/apple/foundationdb/blob/master/documentation/sphinx/source/api-common.rst.inc
+// https://forums.foundationdb.org/t/is-possible-set-a-value-as-a-reference-to-another-subspace/553/8
 // use Long.parseUnsignedLong
 // https://github.com/jaytaylor/sql-layer
 // https://apple.github.io/foundationdb/developer-guide.html#namespace-management
@@ -80,7 +85,6 @@ public class EventStoreLayer implements EventStore {
                 Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
                 Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
-//                long readPosition = readHeadPosition(tr, streamSubspace);
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
 
                 // TODO: can we remove position from page? I dont think position is what we are looking for.
@@ -94,18 +98,14 @@ public class EventStoreLayer implements EventStore {
                     // TODO: make this an atomic operation via MutationType
                     long streamIndex = streamPosition + i;
 
-                    Tuple t = Tuple.from(Versionstamp.incomplete(i));
-                    byte[] vs = globalSubspace.packWithVersionstamp(t);
+                    Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    byte[] value = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata()).pack();
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
 
-                    // TODO: could this also be used in the tuple above? Would we get the same value?
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, vs, value);
-                    tr.set(streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
-                    // getting invalid API call when attempting this
-                    // tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(streamIndex)).pack(), value);
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(streamIndex)).pack(), tv.add(versionstamp).packWithVersionstamp());
                 }
 
                 return new AppendResult(0, 0L);
@@ -117,6 +117,86 @@ public class EventStoreLayer implements EventStore {
             return null;
         });
 
+    }
+
+    private AppendResult appendToStreamInternal(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+
+        // TODO: is this how we want to handle this?
+        if (messages == null || messages.length == 0) {
+            throw new IllegalArgumentException("messages must not be null or empty");
+        }
+
+        if (expectedVersion == ExpectedVersion.ANY) {
+            return appendToStreamExpectedVersionAny(streamId, messages);
+        }
+        if (expectedVersion == ExpectedVersion.NO_STREAM) {
+            return appendToStreamExpectedVersionNoStream(streamId, messages);
+        }
+        return appendToStreamExpectedVersion(streamId, expectedVersion, messages);
+    }
+
+    private AppendResult appendToStreamExpectedVersionAny(String streamId, NewStreamMessage[] messages) {
+        return null;
+    }
+
+    private AppendResult appendToStreamExpectedVersionNoStream(String streamId, NewStreamMessage[] messages) {
+        return null;
+    }
+
+    private AppendResult appendToStreamExpectedVersion(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+        HashCode streamHash = createHash(streamId);
+
+        AtomicInteger latestStreamVersion = new AtomicInteger();
+        CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            try {
+                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+
+                ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+                Integer currentStreamVersion = backwardPage.getMessages().length == 0
+                    ? StreamVersion.START
+                    : backwardPage.getMessages()[0].getStreamVersion();
+
+                if (!Objects.equals(expectedVersion, currentStreamVersion)) {
+                    throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, currentStreamVersion));
+                }
+
+                latestStreamVersion.set(currentStreamVersion);
+                for (int i = 0; i < messages.length; i++) {
+                    latestStreamVersion.incrementAndGet();
+
+                    Versionstamp versionstamp = Versionstamp.incomplete(i);
+
+                    // TODO: how should we store metadata
+                    NewStreamMessage message = messages[i];
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                }
+
+                return tr.getVersionstamp();
+            } catch (Exception e) {
+                // TODO: what to actually do here
+                LOG.error("error appending to stream", e);
+            }
+
+            return null;
+        });
+
+
+        try {
+            byte[] trVersion = trVersionFuture.get();
+
+            Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
+            return new AppendResult(latestStreamVersion.get(), 0L);
+
+        } catch (InterruptedException|ExecutionException e) {
+            // TODO: what to actually do here
+            LOG.error("error appending to stream", e);
+        }
+
+        return null;
     }
 
     @Override
@@ -245,7 +325,8 @@ public class EventStoreLayer implements EventStore {
                     byte[] key = kvs.get(i).getKey();
                     Tuple t = streamSubspace.unpack(key);
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
-
+                    LOG.info("readStreamInternal key tuple {}", t);
+                    LOG.info("readStreamInternal value tuple {}", tupleValue);
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
@@ -258,7 +339,7 @@ public class EventStoreLayer implements EventStore {
                     );
                     messages[i] = message;
 
-                    //LOG.info("readStreamInternal value versionstamp {}", tupleValue.getVersionstamp(5));
+                    LOG.info("readStreamInternal value versionstamp {}", tupleValue.getVersionstamp(5));
                 }
 
                 return new ReadStreamPage(
@@ -308,4 +389,43 @@ public class EventStoreLayer implements EventStore {
     private static HashCode createHash(String streamId) {
         return Hashing.murmur3_128().hashString(streamId, UTF_8);
     }
+
+//    private Subspace getGlobalSubspace() {
+//        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+//    }
+//
+//    private Subspace getStreamSubspace(String streamHash) {
+//        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash));
+//    }
+
+
+//    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
+//    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
+//        AsyncIterator<KeyValue> iterator = tr.getRange(logSubspace.range(), /* reverse = */ true, /* limit = */ 1).iterator();
+//        return iterator.onHasNext(hasAny -> {
+//            if (hasAny) {
+//                // Get the last element from the log subspace and parse out the versionstamp
+//                KeyValue kv = iterator.next();
+//                return Tuple.fromBytes(kv.getKey()).getVersionstamp(0);
+//            } else {
+//                // Log subspace is empty
+//                return null; // or a versionstamp of all zeroes if you prefer
+//            }
+//        });
+//    }
+
+//    Construct a versionstamp from your transaction's read version
+//    This makes use of the fact that the first 8 bytes of a versionstamp are the commit version of the data associated with a record.
+//    Therefore, if you know the read version of the transaction, you also know that all data in your log subspace at version v will be prefixed by a version less than or equal to v and all future data added later will be prefixed with a version greater than v.
+//    So you can do something like:
+
+//    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
+//        return tr.getReadVersion().thenApply(readVersion ->
+//            Versionstamp.fromBytes(ByteBuffer.allocate(Versionstamp.LENGTH)
+//                .order(ByteOrder.BIG_ENDIAN)
+//                .putLong(readVersion)
+//                .putInt(0xffffffff)
+//                .array())
+//        );
+//    }
 }
