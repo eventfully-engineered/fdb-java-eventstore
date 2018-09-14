@@ -14,12 +14,12 @@ public class StreamVersion {
     /**
      * The first message in a stream
      */
-    public static final int START = 0;
+    public static final Integer START = 0;
 
     /**
      * the last message in a stream
      */
-    public static final int END = -1;
+    public static final Integer END = -1;
 
     private StreamVersion() {
         // static constants only
