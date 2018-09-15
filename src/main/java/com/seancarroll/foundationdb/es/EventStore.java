@@ -68,17 +68,11 @@ public interface EventStore {
                                        int fromVersionInclusive,
                                        int maxCount);
 
-
-    // TODO: this was designed to get the very last message in the event store which is not how this codebase is using it
-    // Should we remove for now?
-    // The shape of this to match the actual use case would be to return the latest versionstamp from the global subspace
-    // which shouldn't require any parameters to be passed it.
     /**
      * Reads the head position (the position of the very latest message).
      * @return the head position
      */
-    // TODO: not sure if its a great idea to require client to pass in a transaction or not
-    Long readHeadPosition(Transaction tr, Subspace subspace) throws ExecutionException, InterruptedException;
+    Long readHeadPosition() throws ExecutionException, InterruptedException;
 
     /**
      * Gets the stream metadata
@@ -89,5 +83,5 @@ public interface EventStore {
 
     // TODO: Do we want to include a method to read a specific event?
     // something like readEvent(string stream, UUID eventNumber)
-    
+
 }

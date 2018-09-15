@@ -423,23 +423,30 @@ public class EventStoreLayer implements EventStore {
         });
     }
 
-    // TODO: Need to be consistent with what we call "position" vs what we call "version"
-    // I dont really like passing in any subsapce and would like to constrain it if possible to es subspaces
-    // also dont know if we need to support getting head from both global and stream but it seems like a decent idea
     @Override
-    public Long readHeadPosition(Transaction tr, Subspace subspace) throws ExecutionException, InterruptedException {
-        byte[] k = tr.getKey(KeySelector.lastLessThan(subspace.range().end)).get();
+    public Long readHeadPosition() {
+        return database.read(tr -> {
+            try {
+                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                byte[] k = tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end)).get();
 
-        if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(subspace.range().begin)) < 0) {
-            return 0L;
-        }
+                if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
+                    return 0L;
+                }
 
-        Tuple t = subspace.unpack(k);
-        if (t == null) {
-            throw new RuntimeException("failed to unpack key");
-        }
+                Tuple t = globalSubspace.unpack(k);
+                if (t == null) {
+                    throw new RuntimeException("failed to unpack key");
+                }
 
-        return t.getLong(0);
+                return t.getLong(0);
+            } catch (InterruptedException|ExecutionException e) {
+                // TODO: what do we actually want to do here
+                LOG.error("error reading head position", e);
+            }
+
+            return null;
+        });
     }
 
     @Override

@@ -5,8 +5,6 @@ import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.subspace.Subspace;
-import com.apple.foundationdb.tuple.Tuple;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -209,52 +207,15 @@ public class EventStoreLayerTest {
     }
 
     @Test
-    public void readHeadPositionNoStreams() {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            StreamId streamId = new StreamId("non-existext-stream");
-
-            Long headPosition = db.run((Transaction tr) -> {
-                Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
-                try {
-                    return es.readHeadPosition(tr, streamSubspace);
-                } catch (Exception e) {
-                    System.out.println(e);
-                    throw new RuntimeException();
-                }
-            });
-
-            assertEquals(0L, headPosition.longValue());
-
-        }
-    }
-
-    @Test
     public void readHeadPosition() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            Long headPosition = es.readHeadPosition();
 
-            StreamId streamId = new StreamId("test-stream");
-
-            long headPosition = db.run((Transaction tr) -> {
-                Subspace streamSubspace = eventStoreSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
-                try {
-                    return es.readHeadPosition(tr, streamSubspace);
-                } catch (Exception e) {
-                    System.out.println(e);
-                    throw new RuntimeException();
-                }
-            });
-
-            assertEquals(4L, headPosition);
+            assertEquals(0L, headPosition.longValue());
         }
     }
 
