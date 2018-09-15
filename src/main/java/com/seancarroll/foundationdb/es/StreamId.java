@@ -11,7 +11,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // TODO: I dont really like the name
 public class StreamId {
 
-    // TODO: how about we juse id and hash?
     private final String id;
     private final String hash;
 
@@ -26,10 +25,18 @@ public class StreamId {
         this.hash = Hashing.murmur3_128().hashString(id, UTF_8).toString();
     }
 
+    /**
+     * Original id provided by the caller
+     * @return
+     */
     public String getId() {
         return id;
     }
 
+    /**
+     *
+     * @return murmur3 128 bit hash of the id
+     */
     public String getHash() {
         return hash;
     }
