@@ -22,9 +22,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+
+// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/store/format/FullTextIndexFileStorageFormat.java
+// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/service/text/Searcher.java
+// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/service/text/FullTextIndexServiceImpl.java
+// https://forums.foundationdb.org/t/versionstamp-vs-committedversion/600
+// https://eventstore.org/docs/dotnet-api/reading-events/index.html
+// https://github.com/hashicorp/vault/blob/master/physical/foundationdb/foundationdb.go
 // https://github.com/apple/foundationdb/blob/master/documentation/sphinx/source/api-common.rst.inc
 // https://forums.foundationdb.org/t/is-possible-set-a-value-as-a-reference-to-another-subspace/553/8
-// use Long.parseUnsignedLong
+// TODO: use Long.parseUnsignedLong
 // https://github.com/jaytaylor/sql-layer
 // https://apple.github.io/foundationdb/developer-guide.html#namespace-management
 // https://eventstore.org/docs/dotnet-api/reading-events/index.html
@@ -71,52 +78,7 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public AppendResult appendToStream(String streamId, int expectedVersion, NewStreamMessage[] messages) {
-        HashCode streamHash = createHash(streamId);
-
-        // TODO: query last tuple in stream to get latest version
-        // TODO: how does foundationdb handle conflicting keys, optimistic/pessimistic locking
-
-        int currentVersion = expectedVersion;
-        return database.run(tr -> {
-            try {
-                // TODO: should we have a create/build db method that way we can just call open?
-                // What is the overhead of the create check?
-                // can we create directories/subspaces via cli?
-                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
-
-                ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
-
-                // TODO: can we remove position from page? I dont think position is what we are looking for.
-                // or this could be the versionstamp from the global stream? not sure if thats useful?
-                // TODO: change to backwardPage.getNextStreamVersion() or maybe backwardPage.getLastStreamVersion()
-                long streamPosition = backwardPage.getMessages().length == 0
-                    ? 0
-                    : backwardPage.getMessages()[0].getPosition();
-
-                for (int i = 0; i < messages.length; i++) {
-                    // TODO: make this an atomic operation via MutationType
-                    long streamIndex = streamPosition + i;
-
-                    Versionstamp versionstamp = Versionstamp.incomplete(i);
-
-                    // TODO: how should we store metadata
-                    NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
-
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(streamIndex)).pack(), tv.add(versionstamp).packWithVersionstamp());
-                }
-
-                return new AppendResult(0, 0L);
-            } catch (Exception e) {
-                // TODO: what to actually do here
-                LOG.error("error appending to stream", e);
-            }
-
-            return null;
-        });
-
+        return appendToStreamInternal(streamId, expectedVersion, messages);
     }
 
     private AppendResult appendToStreamInternal(String streamId, int expectedVersion, NewStreamMessage[] messages) {
@@ -135,14 +97,119 @@ public class EventStoreLayer implements EventStore {
         return appendToStreamExpectedVersion(streamId, expectedVersion, messages);
     }
 
+    // TODO: Idempotency handling. Check if the Messages have already been written.
+    // TODO: clean up
     private AppendResult appendToStreamExpectedVersionAny(String streamId, NewStreamMessage[] messages) {
+        HashCode streamHash = createHash(streamId);
+
+        AtomicInteger latestStreamVersion = new AtomicInteger();
+        CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            try {
+                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+
+                ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+                Integer currentStreamVersion = backwardPage.getMessages().length == 0
+                    ? StreamVersion.END
+                    : backwardPage.getMessages()[0].getStreamVersion();
+
+                latestStreamVersion.set(currentStreamVersion);
+                for (int i = 0; i < messages.length; i++) {
+                    latestStreamVersion.incrementAndGet();
+
+                    Versionstamp versionstamp = Versionstamp.incomplete(i);
+
+                    // TODO: how should we store metadata
+                    NewStreamMessage message = messages[i];
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                }
+
+                return tr.getVersionstamp();
+            } catch (Exception e) {
+                // TODO: what to actually do here
+                LOG.error("error appending to stream", e);
+            }
+
+            return null;
+        });
+
+
+        try {
+            byte[] trVersion = trVersionFuture.get();
+
+            Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
+            return new AppendResult(latestStreamVersion.get(), 0L);
+
+        } catch (InterruptedException|ExecutionException e) {
+            // TODO: what to actually do here
+            LOG.error("error appending to stream", e);
+        }
+
         return null;
     }
 
+    // TODO: Idempotency handling. Check if the Messages have already been written.
+    // TODO: clean up
     private AppendResult appendToStreamExpectedVersionNoStream(String streamId, NewStreamMessage[] messages) {
+        HashCode streamHash = createHash(streamId);
+
+        AtomicInteger latestStreamVersion = new AtomicInteger();
+        CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            try {
+                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+
+                ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+
+                if (PageReadStatus.STREAM_NOT_FOUND != backwardPage.getStatus()) {
+                    // ErrorMessages.AppendFailedWrongExpectedVersion
+                    // $"Append failed due to WrongExpectedVersion.Stream: {streamId}, Expected version: {expectedVersion}"
+                    throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId, StreamVersion.NONE));
+                }
+
+                latestStreamVersion.set(StreamVersion.END);
+                for (int i = 0; i < messages.length; i++) {
+                    latestStreamVersion.incrementAndGet();
+
+                    Versionstamp versionstamp = Versionstamp.incomplete(i);
+
+                    // TODO: how should we store metadata
+                    NewStreamMessage message = messages[i];
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                }
+
+                return tr.getVersionstamp();
+            } catch (Exception e) {
+                // TODO: what to actually do here
+                LOG.error("error appending to stream", e);
+            }
+
+            return null;
+        });
+
+
+        try {
+            byte[] trVersion = trVersionFuture.get();
+
+            Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
+            return new AppendResult(latestStreamVersion.get(), 0L);
+
+        } catch (InterruptedException|ExecutionException e) {
+            // TODO: what to actually do here
+            LOG.error("error appending to stream", e);
+        }
+
         return null;
     }
 
+    // TODO: Idempotency handling. Check if the Messages have already been written.
+    // TODO: clean up
     private AppendResult appendToStreamExpectedVersion(String streamId, int expectedVersion, NewStreamMessage[] messages) {
         HashCode streamHash = createHash(streamId);
 
@@ -154,7 +221,7 @@ public class EventStoreLayer implements EventStore {
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
-                    ? StreamVersion.START
+                    ? StreamVersion.END
                     : backwardPage.getMessages()[0].getStreamVersion();
 
                 if (!Objects.equals(expectedVersion, currentStreamVersion)) {
@@ -246,9 +313,6 @@ public class EventStoreLayer implements EventStore {
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
-                    byte[] key = kvs.get(i).getKey();
-                    Tuple t = globalSubspace.unpack(key);
-                    LOG.info("readAllInternal key: {}", t.get(0));
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
@@ -322,15 +386,12 @@ public class EventStoreLayer implements EventStore {
 
                 StreamMessage[] messages = new StreamMessage[kvs.size()];
                 for (int i = 0; i < kvs.size(); i++) {
-                    byte[] key = kvs.get(i).getKey();
-                    Tuple t = streamSubspace.unpack(key);
+                    Tuple key = streamSubspace.unpack(kvs.get(i).getKey());
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
-                    LOG.info("readStreamInternal key tuple {}", t);
-                    LOG.info("readStreamInternal value tuple {}", tupleValue);
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
-                        0,
+                        (int)key.getLong(0), // TODO: fix this.
                         0L,
                         DateTime.now(),
                         tupleValue.getString(2),
