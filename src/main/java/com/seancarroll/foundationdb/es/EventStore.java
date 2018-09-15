@@ -87,4 +87,7 @@ public interface EventStore {
     StreamMetadataResult getStreamMetadata(String streamId);
 
 
+    // TODO: Do we want to include a method to read a specific event?
+    // something like readEvent(string stream, UUID eventNumber)
+    
 }
