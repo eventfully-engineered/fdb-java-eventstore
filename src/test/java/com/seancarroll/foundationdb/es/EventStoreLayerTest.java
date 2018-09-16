@@ -31,6 +31,8 @@ public class EventStoreLayerTest {
     }
 
 
+    // TODO: add test where we maxCount for stream is less than total
+    // TODO: add test where we maxCount for stream is more than total
     // TODO: add test for expected stream none
     // TODO: add test for wrong version expected with expected stream none aka writing it multiple times
     // TODO: add test for expected stream any with stream doesnt exist
@@ -56,7 +58,7 @@ public class EventStoreLayerTest {
             ReadAllPage forwardPage = es.readAllForwards(0, 2);
             assertNotNull(forwardPage);
             assertEquals(2, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
+            assertTrue(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
@@ -98,7 +100,7 @@ public class EventStoreLayerTest {
             ReadAllPage forwardPage = es.readAllForwards(0, 4);
             assertNotNull(forwardPage);
             assertEquals(4, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
+            assertTrue(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
         }
@@ -141,7 +143,7 @@ public class EventStoreLayerTest {
 
             assertNotNull(forwardPage);
             assertEquals(4, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
+            assertTrue(forwardPage.isEnd());
             assertEquals("type", forwardPage.getMessages()[0].getType());
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
 

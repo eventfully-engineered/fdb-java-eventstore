@@ -59,6 +59,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // - Should our operations create their own transaction? If so how can clients make sure everything is one atomic transaction?
 // - Should clients pass in their on directory/subspace?
 // - How do we want to handle position in global vs stream subspace?
+// TODO: improve my exception handling code
 public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
@@ -71,6 +72,11 @@ public class EventStoreLayer implements EventStore {
     // DirectoryLayer.getDefault() uses DEFAULT_CONTENT_SUBSPACE which is no prefix
     // or we could take in a tuple
     // directorysubspace must allow manual prefixes
+    /**
+     *
+     * @param database
+     * @param subspace
+     */
     public EventStoreLayer(Database database, DirectorySubspace subspace) {
         this.database = database;
         this.esSubspace = subspace;
@@ -82,7 +88,6 @@ public class EventStoreLayer implements EventStore {
     }
 
     private AppendResult appendToStreamInternal(String streamId, int expectedVersion, NewStreamMessage[] messages) {
-
         // TODO: is this how we want to handle this?
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
@@ -111,7 +116,7 @@ public class EventStoreLayer implements EventStore {
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
-                    : backwardPage.getMessages()[0].getStreamVersion();
+                    : backwardPage.getMessages()[0].getStreamVersion(); // TODO: fix
 
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
@@ -136,7 +141,7 @@ public class EventStoreLayer implements EventStore {
             return null;
         });
 
-
+        // TODO: all this is pretty terrible
         try {
             byte[] trVersion = trVersionFuture.get();
 
@@ -193,7 +198,7 @@ public class EventStoreLayer implements EventStore {
             return null;
         });
 
-
+        // TODO: all this is pretty terrible
         try {
             byte[] trVersion = trVersionFuture.get();
 
@@ -220,9 +225,10 @@ public class EventStoreLayer implements EventStore {
                 Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
-                    : backwardPage.getMessages()[0].getStreamVersion();
+                    : backwardPage.getMessages()[0].getStreamVersion(); // TODO: fix
 
                 if (!Objects.equals(expectedVersion, currentStreamVersion)) {
                     throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, currentStreamVersion));
@@ -251,7 +257,7 @@ public class EventStoreLayer implements EventStore {
             return null;
         });
 
-
+        // TODO: all this is pretty terrible
         try {
             byte[] trVersion = trVersionFuture.get();
 
@@ -268,12 +274,14 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public void deleteStream(String streamId, int expectedVersion) {
-        database.run(tr -> null);
+        // database.run(tr -> null);
+        throw new RuntimeException("Not implemented exception");
     }
 
     @Override
     public void deleteMessage(String streamId, UUID messageId) {
-        database.run(tr -> null);
+        // database.run(tr -> null);
+        throw new RuntimeException("Not implemented exception");
     }
 
     @Override
@@ -295,24 +303,27 @@ public class EventStoreLayer implements EventStore {
         return database.read(tr -> {
             Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
 
+            // add one so we can determine if we are at the end of the stream
+            int rangeCount = maxCount == Integer.MAX_VALUE ? maxCount : maxCount + 1;
+
             // TODO: look at the various streaming modes to determine best fit
-            AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), maxCount, reverse);
+            AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), rangeCount, reverse);
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
-
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
                     return new ReadAllPage(
                         fromPositionInclusive,
                         0L,
-                        false,
+                        true,
                         direction,
                         null,
                         Empty.STREAM_MESSAGES);
                 }
 
-                StreamMessage[] messages = new StreamMessage[kvs.size()];
-                for (int i = 0; i < kvs.size(); i++) {
+                int limit = Math.min(maxCount, kvs.size());
+                StreamMessage[] messages = new StreamMessage[limit];
+                for (int i = 0; i < limit; i++) {
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
@@ -327,16 +338,14 @@ public class EventStoreLayer implements EventStore {
                         tupleValue.getBytes(3)
                     );
                     messages[i] = message;
-
-                   // LOG.info("readAllInternal value versionstamp {}", tupleValue.getVersionstamp(5));
                 }
 
                 return new ReadAllPage(
                     fromPositionInclusive,
                     0L,
-                    false,
+                    maxCount >= kvs.size(),
                     direction,
-                    null,
+                    null, // TODO: fix
                     messages);
             } catch (InterruptedException|ExecutionException e) {
                 // TODO: what do we actually want to do here
@@ -361,15 +370,17 @@ public class EventStoreLayer implements EventStore {
         HashCode streamHash = createHash(streamId);
         return database.read(tr -> {
             Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+
+            // add one so we can determine if we are at the end of the stream
+            int rangeCount = maxCount == Integer.MAX_VALUE ? maxCount : maxCount + 1;
+
             // TODO: look at the various streaming modes to determine best fit.
-            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), maxCount, reverse, StreamingMode.WANT_ALL);
+            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), rangeCount, reverse, StreamingMode.WANT_ALL);
 
             try {
-
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
                 List<KeyValue> kvs = r.asList().get();
-
                 if (kvs.isEmpty()) {
                     return new ReadStreamPage(
                         streamId,
@@ -384,8 +395,9 @@ public class EventStoreLayer implements EventStore {
                         Empty.STREAM_MESSAGES);
                 }
 
-                StreamMessage[] messages = new StreamMessage[kvs.size()];
-                for (int i = 0; i < kvs.size(); i++) {
+                int limit = Math.min(maxCount, kvs.size());
+                StreamMessage[] messages = new StreamMessage[limit];
+                for (int i = 0; i < limit; i++) {
                     Tuple key = streamSubspace.unpack(kvs.get(i).getKey());
                     Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
                     StreamMessage message = new StreamMessage(
@@ -399,8 +411,6 @@ public class EventStoreLayer implements EventStore {
                         tupleValue.getBytes(3)
                     );
                     messages[i] = message;
-
-                    LOG.info("readStreamInternal value versionstamp {}", tupleValue.getVersionstamp(5));
                 }
 
                 return new ReadStreamPage(
@@ -411,7 +421,7 @@ public class EventStoreLayer implements EventStore {
                     0,
                     0L,
                     direction,
-                    false,
+                    maxCount >= kvs.size(),
                     null,
                     messages);
             } catch (InterruptedException|ExecutionException e) {
