@@ -261,6 +261,7 @@ public class EventStoreLayer implements EventStore {
         try {
             byte[] trVersion = trVersionFuture.get();
 
+            // TODO: this is a bit icky
             Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
             return new AppendResult(latestStreamVersion.get(), 0L);
 
@@ -310,14 +311,17 @@ public class EventStoreLayer implements EventStore {
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), rangeCount, reverse);
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+
+                ReadNextAllPage readNext = (Long nextPosition) -> readAllForwards(nextPosition, maxCount);
+
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
                     return new ReadAllPage(
                         fromPositionInclusive,
-                        0L, // TODO: fix
+                        fromPositionInclusive,
                         true,
                         direction,
-                        null, // TODO: fix
+                        readNext,
                         Empty.STREAM_MESSAGES);
                 }
 
@@ -345,7 +349,7 @@ public class EventStoreLayer implements EventStore {
                     0L, // TODO: fix. If we plan to use Versionstamp we can provide nextPosition unless we do something like nextPosition is populated if not at end and null if at end
                     maxCount >= kvs.size(),
                     direction,
-                    null, // TODO: fix
+                    readNext,
                     messages);
             } catch (InterruptedException|ExecutionException e) {
                 // TODO: what do we actually want to do here
@@ -380,6 +384,8 @@ public class EventStoreLayer implements EventStore {
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
+                ReadNextStreamPage readNext = (int nextPosition) -> readStreamForwards(streamId, fromVersionInclusive, maxCount);
+
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
                     return new ReadStreamPage(
@@ -391,7 +397,7 @@ public class EventStoreLayer implements EventStore {
                         Position.END,
                         direction,
                         true,
-                        null,
+                        readNext,
                         Empty.STREAM_MESSAGES);
                 }
 
@@ -416,6 +422,7 @@ public class EventStoreLayer implements EventStore {
                 int nextStreamVersion = reverse
                     ? messages[limit - 1].getStreamVersion() - 1
                     : messages[limit - 1].getStreamVersion() + 1;
+
                 return new ReadStreamPage(
                     streamId,
                     PageReadStatus.SUCCESS,
@@ -425,7 +432,7 @@ public class EventStoreLayer implements EventStore {
                     0L, // TODO: fix
                     direction,
                     maxCount >= kvs.size(),
-                    null, // TODO: fix
+                    readNext,
                     messages);
             } catch (InterruptedException|ExecutionException e) {
                 // TODO: what do we actually want to do here

@@ -107,6 +107,25 @@ public class EventStoreLayerTest {
     }
 
     @Test
+    public void readAllForwardNextPage() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            // TODO: improve test
+            ReadAllPage forwardPage = es.readAllForwards(0, 1);
+            assertNotNull(forwardPage);
+
+            ReadAllPage nextPage = forwardPage.readNext();
+            assertNotNull(nextPage);
+        }
+    }
+
+    @Test
     public void readAllBackwardsTest() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
@@ -188,6 +207,28 @@ public class EventStoreLayerTest {
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
             assertEquals(0, forwardPage.getMessages()[0].getStreamVersion());
             assertEquals(1, forwardPage.getNextStreamVersion());
+        }
+    }
+
+    @Test
+    public void readStreamForwardNextPage() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+            assertNotNull(forwardPage);
+
+            // TODO: improve test
+            ReadStreamPage nextPage = forwardPage.getNext();
+            assertNotNull(nextPage);
+            assertEquals(1, nextPage.getMessages().length);
+            assertFalse(nextPage.isEnd());
+
         }
     }
 

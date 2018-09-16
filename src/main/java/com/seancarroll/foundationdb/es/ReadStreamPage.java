@@ -162,8 +162,8 @@ public class ReadStreamPage {
         return isEnd;
     }
 
-    public ReadNextStreamPage getNext() {
-        return readNext;
+    public ReadStreamPage getNext() {
+        return readNext.get(nextStreamVersion);
     }
 
     @Override
