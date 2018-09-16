@@ -116,7 +116,7 @@ public class EventStoreLayer implements EventStore {
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
-                    : backwardPage.getMessages()[0].getStreamVersion(); // TODO: fix
+                    : backwardPage.getNextStreamVersion();
 
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
@@ -228,7 +228,7 @@ public class EventStoreLayer implements EventStore {
 
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
-                    : backwardPage.getMessages()[0].getStreamVersion(); // TODO: fix
+                    : backwardPage.getNextStreamVersion();
 
                 if (!Objects.equals(expectedVersion, currentStreamVersion)) {
                     throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, currentStreamVersion));
@@ -314,10 +314,10 @@ public class EventStoreLayer implements EventStore {
                 if (kvs.isEmpty()) {
                     return new ReadAllPage(
                         fromPositionInclusive,
-                        0L,
+                        0L, // TODO: fix
                         true,
                         direction,
-                        null,
+                        null, // TODO: fix
                         Empty.STREAM_MESSAGES);
                 }
 
@@ -330,8 +330,8 @@ public class EventStoreLayer implements EventStore {
                     StreamMessage message = new StreamMessage(
                         tupleValue.getString(1),
                         tupleValue.getUUID(0),
-                        0,
-                        0L,
+                        0, // TODO: fix
+                        0L, // TODO: fix
                         DateTime.now(),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
@@ -342,7 +342,7 @@ public class EventStoreLayer implements EventStore {
 
                 return new ReadAllPage(
                     fromPositionInclusive,
-                    0L,
+                    0L, // TODO: fix. If we plan to use Versionstamp we can provide nextPosition unless we do something like nextPosition is populated if not at end and null if at end
                     maxCount >= kvs.size(),
                     direction,
                     null, // TODO: fix
@@ -404,7 +404,7 @@ public class EventStoreLayer implements EventStore {
                         streamId,
                         tupleValue.getUUID(0),
                         (int)key.getLong(0), // TODO: fix this.
-                        0L,
+                        0L, // TODO: fix
                         DateTime.now(),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
@@ -413,16 +413,19 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
+                int nextStreamVersion = reverse
+                    ? messages[limit - 1].getStreamVersion() - 1
+                    : messages[limit - 1].getStreamVersion() + 1;
                 return new ReadStreamPage(
                     streamId,
                     PageReadStatus.SUCCESS,
                     fromVersionInclusive,
-                    0,
-                    0,
-                    0L,
+                    nextStreamVersion,
+                    0, // TODO: fix
+                    0L, // TODO: fix
                     direction,
                     maxCount >= kvs.size(),
-                    null,
+                    null, // TODO: fix
                     messages);
             } catch (InterruptedException|ExecutionException e) {
                 // TODO: what do we actually want to do here

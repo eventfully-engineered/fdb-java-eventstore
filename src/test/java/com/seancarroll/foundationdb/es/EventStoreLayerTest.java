@@ -163,6 +163,8 @@ public class EventStoreLayerTest {
             assertEquals(0, forwardPage.getMessages().length);
             assertTrue(forwardPage.isEnd());
             assertEquals(PageReadStatus.STREAM_NOT_FOUND, forwardPage.getStatus());
+            // TODO: ugh dont like the need to call intValue...Fix
+            assertEquals(StreamVersion.END.intValue(), forwardPage.getNextStreamVersion());
         }
     }
 
@@ -184,6 +186,8 @@ public class EventStoreLayerTest {
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
             assertEquals("type", forwardPage.getMessages()[0].getType());
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+            assertEquals(0, forwardPage.getMessages()[0].getStreamVersion());
+            assertEquals(1, forwardPage.getNextStreamVersion());
         }
     }
 
@@ -205,6 +209,8 @@ public class EventStoreLayerTest {
             assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
             assertEquals("type", backwardPage.getMessages()[0].getType());
             assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+            assertEquals(4, backwardPage.getMessages()[0].getStreamVersion());
+            assertEquals(3, backwardPage.getNextStreamVersion());
         }
     }
 
