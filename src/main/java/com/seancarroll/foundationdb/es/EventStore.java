@@ -1,8 +1,5 @@
 package com.seancarroll.foundationdb.es;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.subspace.Subspace;
-
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -15,19 +12,6 @@ public interface EventStore {
         String streamId,
         int expectedVersion,
         NewStreamMessage[] messages);
-
-
-    void deleteStream(String streamId, int expectedVersion);
-
-    void deleteMessage(String streamId, UUID messageId);
-
-    SetStreamMetadataResult setStreamMetadata(
-        String streamId,
-        int expectedStreamMetadataVersion, // = ExpectedVersion.Any,
-        Integer maxAge,
-        Integer maxCount,
-        String metadataJson);
-
 
     /**
      *
@@ -74,12 +58,22 @@ public interface EventStore {
      */
     Long readHeadPosition() throws ExecutionException, InterruptedException;
 
+    SetStreamMetadataResult setStreamMetadata(
+        String streamId,
+        int expectedStreamMetadataVersion, // = ExpectedVersion.Any,
+        Integer maxAge,
+        Integer maxCount,
+        String metadataJson);
+
     /**
      * Gets the stream metadata
      * @param streamId The stream ID whose metadata is to be read.
      */
     StreamMetadataResult getStreamMetadata(String streamId);
 
+    void deleteStream(String streamId, int expectedVersion);
+
+    void deleteMessage(String streamId, UUID messageId);
 
     // TODO: Do we want to include a method to read a specific event?
     // something like readEvent(string stream, UUID eventNumber)
