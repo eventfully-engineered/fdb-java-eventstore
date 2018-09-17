@@ -394,7 +394,7 @@ public class EventStoreLayer implements EventStore {
                         fromVersionInclusive,
                         StreamVersion.END,
                         StreamVersion.END,
-                        Position.END,
+                        StreamPosition.END,
                         direction,
                         true,
                         readNext,
