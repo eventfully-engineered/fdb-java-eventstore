@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.*;
 
 // TODO: clean up tests
+// I think it might make sense to split this into separate test files per method
 public class EventStoreLayerTest {
 
     @BeforeEach
@@ -187,8 +188,6 @@ public class EventStoreLayerTest {
         }
     }
 
-    // TODO: add throwWhenMaxCountIsIntMaxValue
-    // TODO: add readStreamBackwardsShouldThrowIfCountLessThanOrEqualZero
 
     @Test
     public void readStreamForward() {
@@ -210,6 +209,29 @@ public class EventStoreLayerTest {
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
             assertEquals(0, forwardPage.getMessages()[0].getStreamVersion());
             assertEquals(1, forwardPage.getNextStreamVersion());
+        }
+    }
+
+    @Test
+    public void throwWhenMaxCountExceedsMaxReadCount() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1);
+
+        }
+    }
+
+    @Test
+    public void readStreamForwardsShouldThrowIfCountLessThanOrEqualZero() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            es.readStreamForwards("test-stream", 0, 0);
         }
     }
 
@@ -255,6 +277,28 @@ public class EventStoreLayerTest {
             assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
             assertEquals(4, backwardPage.getMessages()[0].getStreamVersion());
             assertEquals(3, backwardPage.getNextStreamVersion());
+        }
+    }
+
+    @Test
+    public void throwWhenReadBackwardsMaxCountExceedsMaxReadCount() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            es.readStreamBackwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1);
+        }
+    }
+
+    @Test
+    public void readStreamBackwardsShouldThrowIfCountLessThanOrEqualZero() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            es.readStreamBackwards("test-stream", 0, 0);
         }
     }
 

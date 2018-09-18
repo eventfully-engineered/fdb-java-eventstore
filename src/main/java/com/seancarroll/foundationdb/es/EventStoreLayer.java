@@ -6,6 +6,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.base.Preconditions;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import org.joda.time.DateTime;
@@ -36,6 +37,8 @@ public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
 
+    public static final int MAX_READ_SIZE = 4096;
+
     private final Database database;
     private final DirectorySubspace esSubspace;
 
@@ -60,6 +63,8 @@ public class EventStoreLayer implements EventStore {
     }
 
     private AppendResult appendToStreamInternal(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+        Preconditions.checkNotNull(streamId);
+
         // TODO: is this how we want to handle this?
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
@@ -273,11 +278,15 @@ public class EventStoreLayer implements EventStore {
     }
 
     private ReadAllPage readAllInternal(long fromPositionInclusive, int maxCount, boolean reverse) {
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount > MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
         return database.read(tr -> {
+
             Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
 
             // add one so we can determine if we are at the end of the stream
-            int rangeCount = maxCount == Integer.MAX_VALUE ? maxCount : maxCount + 1;
+            int rangeCount =  maxCount + 1;
 
             // TODO: look at the various streaming modes to determine best fit
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), rangeCount, reverse);
@@ -343,12 +352,17 @@ public class EventStoreLayer implements EventStore {
     }
 
     private ReadStreamPage readStreamInternal(String streamId, int fromVersionInclusive, int maxCount, boolean reverse) {
+        Preconditions.checkNotNull(streamId);
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
         HashCode streamHash = createHash(streamId);
         return database.read(tr -> {
+
             Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
 
             // add one so we can determine if we are at the end of the stream
-            int rangeCount = maxCount == Integer.MAX_VALUE ? maxCount : maxCount + 1;
+            int rangeCount = maxCount + 1;
 
             // TODO: look at the various streaming modes to determine best fit.
             AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), rangeCount, reverse, StreamingMode.WANT_ALL);
@@ -428,6 +442,7 @@ public class EventStoreLayer implements EventStore {
 
                 Tuple t = globalSubspace.unpack(k);
                 if (t == null) {
+                    // TODO: custom exception
                     throw new RuntimeException("failed to unpack key");
                 }
 
