@@ -87,8 +87,8 @@ public class EventStoreLayer implements EventStore {
         AtomicInteger latestStreamVersion = new AtomicInteger();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
-                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+                Subspace globalSubspace = getGlobalSubspace();
+                Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
                 Integer currentStreamVersion = backwardPage.getMessages().length == 0
@@ -141,8 +141,8 @@ public class EventStoreLayer implements EventStore {
         AtomicInteger latestStreamVersion = new AtomicInteger();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
-                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+                Subspace globalSubspace = getGlobalSubspace();
+                Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
 
@@ -198,8 +198,8 @@ public class EventStoreLayer implements EventStore {
         AtomicInteger latestStreamVersion = new AtomicInteger();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
-                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-                Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+                Subspace globalSubspace = getGlobalSubspace();
+                Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
 
@@ -279,11 +279,11 @@ public class EventStoreLayer implements EventStore {
 
     private ReadAllPage readAllInternal(long fromPositionInclusive, int maxCount, boolean reverse) {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
-        Preconditions.checkArgument(maxCount > MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+        Preconditions.checkArgument(maxCount < MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
         return database.read(tr -> {
 
-            Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+            Subspace globalSubspace = getGlobalSubspace();
 
             // add one so we can determine if we are at the end of the stream
             int rangeCount =  maxCount + 1;
@@ -359,7 +359,7 @@ public class EventStoreLayer implements EventStore {
         HashCode streamHash = createHash(streamId);
         return database.read(tr -> {
 
-            Subspace streamSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash.toString()));
+            Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
@@ -433,7 +433,7 @@ public class EventStoreLayer implements EventStore {
     public Long readHeadPosition() {
         return database.read(tr -> {
             try {
-                Subspace globalSubspace = esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+                Subspace globalSubspace = getGlobalSubspace();
                 byte[] k = tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end)).get();
 
                 if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
@@ -465,13 +465,13 @@ public class EventStoreLayer implements EventStore {
         return Hashing.murmur3_128().hashString(streamId, UTF_8);
     }
 
-//    private Subspace getGlobalSubspace() {
-//        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
-//    }
-//
-//    private Subspace getStreamSubspace(String streamHash) {
-//        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash));
-//    }
+    private Subspace getGlobalSubspace() {
+        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
+    }
+
+    private Subspace getStreamSubspace(String streamHash) {
+        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash));
+    }
 
 
 //    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
