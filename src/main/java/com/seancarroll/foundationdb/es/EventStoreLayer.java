@@ -279,7 +279,7 @@ public class EventStoreLayer implements EventStore {
 
     private ReadAllPage readAllInternal(long fromPositionInclusive, int maxCount, boolean reverse) {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
-        Preconditions.checkArgument(maxCount < MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
         return database.read(tr -> {
 
