@@ -183,9 +183,12 @@ public class EventStoreLayerTest {
             assertTrue(forwardPage.isEnd());
             assertEquals(PageReadStatus.STREAM_NOT_FOUND, forwardPage.getStatus());
             // TODO: ugh dont like the need to call intValue...Fix
-            assertEquals(StreamVersion.END.intValue(), forwardPage.getNextStreamVersion());
+            assertEquals(StreamVersion.END, forwardPage.getNextStreamVersion());
         }
     }
+
+    // TODO: add throwWhenMaxCountIsIntMaxValue
+    // TODO: add readStreamBackwardsShouldThrowIfCountLessThanOrEqualZero
 
     @Test
     public void readStreamForward() {

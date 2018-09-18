@@ -1,5 +1,7 @@
 package com.seancarroll.foundationdb.es;
 
+// TODO: We dont need StreamPosition and StreamVersion.
+// StreamVersion vs StreamPosition???
 /**
  *
  *
@@ -7,21 +9,22 @@ package com.seancarroll.foundationdb.es;
 public class StreamVersion {
 
     /**
-     * No stream version
-     */
-    public static final Integer NONE = null;
-
-    /**
      * The first message in a stream
      */
-    public static final Integer START = 0;
+    public static final int START = 0;
 
     /**
      * the last message in a stream
      */
-    public static final Integer END = -1;
+    public static final int END = -1;
+
+
+    /**
+     * No stream version
+     */
+    public static final int NONE = -2; // TODO: does -2 work?
 
     private StreamVersion() {
-        // static constants only
+        // public static constants only
     }
 }
