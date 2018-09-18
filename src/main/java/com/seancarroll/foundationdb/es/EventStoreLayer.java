@@ -23,40 +23,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 
-// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/store/format/FullTextIndexFileStorageFormat.java
-// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/service/text/Searcher.java
-// https://github.com/jaytaylor/sql-layer/blob/bebebd23f0490118c491ab4cb46b1c7d52b18d49/fdb-sql-layer-core/src/main/java/com/foundationdb/server/service/text/FullTextIndexServiceImpl.java
-// https://forums.foundationdb.org/t/versionstamp-vs-committedversion/600
-// https://eventstore.org/docs/dotnet-api/reading-events/index.html
-// https://github.com/hashicorp/vault/blob/master/physical/foundationdb/foundationdb.go
-// https://github.com/apple/foundationdb/blob/master/documentation/sphinx/source/api-common.rst.inc
-// https://forums.foundationdb.org/t/is-possible-set-a-value-as-a-reference-to-another-subspace/553/8
 // TODO: use Long.parseUnsignedLong
-// https://github.com/jaytaylor/sql-layer
-// https://apple.github.io/foundationdb/developer-guide.html#namespace-management
-// https://eventstore.org/docs/dotnet-api/reading-events/index.html
-// https://github.com/apple/foundationdb/blob/master/design/tuple.md
-// https://forums.foundationdb.org/t/application-design-using-subspace-and-tuple/452
-// https://forums.foundationdb.org/t/implementing-versionstamps-in-bindings/250
-// https://www.snowflake.com/how-foundationdb-powers-snowflake-metadata-forward/
-// https://forums.foundationdb.org/t/log-abstraction-on-foundationdb/117/3
-// https://github.com/apple/foundationdb/issues/627
 // TODO: should be closeable?
-// https://github.com/bitgn/layers/blob/beb4429b9015e4c10a03cc147662f0e047491d12/go/eventstore/fdbStore.go
-// fdbStore maintains two subspaces:
-// Global / [versionstamp] / contract / <- vs pointer
-// Aggregate / id / version / contract /
-// Mine
-// Global / [versionstamp] / stream message (id, type, content, message metadata, etc) / <- vs pointer
-// Stream / id (stream hash) / version / stream message (id, type, content, message metadata, etc) /
-// do we want contract aka type to be a subspace or part of the value tuple?
-// FoundationDB version timestamp doesnt appear to work. likely because we only get one versionstamp per transaction
-// could we use the 2 byte user/client portion? take the index of each message as the user bytes portion.
-// If we did that we could only support arrays length up to a short (32,767)
 // TODO: where should we store stream metadata?
 // TODO: whats a common pattern for FoundationDB layers?
-// - Should you have clients pass in a transaction?
 // - Should our operations create their own transaction? If so how can clients make sure everything is one atomic transaction?
+// - Should you have clients pass in a transaction?
 // - Should clients pass in their on directory/subspace?
 // - How do we want to handle position in global vs stream subspace?
 // TODO: improve my exception handling code
