@@ -219,7 +219,7 @@ public class EventStoreLayerTest {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1);
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
 
         }
     }
@@ -231,7 +231,7 @@ public class EventStoreLayerTest {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            es.readStreamForwards("test-stream", 0, 0);
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, 0));
         }
     }
 
@@ -287,7 +287,7 @@ public class EventStoreLayerTest {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            es.readStreamBackwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1);
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
         }
     }
 
@@ -298,7 +298,7 @@ public class EventStoreLayerTest {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            es.readStreamBackwards("test-stream", 0, 0);
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", 0, 0));
         }
     }
 
