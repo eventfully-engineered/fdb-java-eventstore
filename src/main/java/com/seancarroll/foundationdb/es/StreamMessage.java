@@ -16,16 +16,14 @@ public class StreamMessage {
     private final String type;
     private final byte[] data;
 
-    public StreamMessage (
-        String streamId,
-        UUID messageId,
-        int streamVersion,
-        long position,
-        DateTime createdUtc,
-        String type,
-        byte[] metadata,
-        byte[] data) {
-
+    public StreamMessage(String streamId,
+                         UUID messageId,
+                         int streamVersion,
+                         long position,
+                         DateTime createdUtc,
+                         String type,
+                         byte[] metadata,
+                         byte[] data) {
         this.streamId = streamId;
         this.messageId = messageId;
         this.streamVersion = streamVersion;

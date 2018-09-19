@@ -14,7 +14,7 @@ public class StreamMetadataResult {
     private final String streamId;
 
     /**
-     * The version of the metadta stream. Can be used for concurrency control
+     * The version of the metadata stream. Can be used for concurrency control
      */
     private final int metadataStreamVersion;
 
@@ -41,12 +41,11 @@ public class StreamMetadataResult {
      * @param maxCount The max count of message in the stream
      * @param metadataJson Custom metadata serialized as JSON
      */
-    public StreamMetadataResult(
-        String streamId,
-        int metadataStreamVersion,
-        Integer maxAge,
-        Integer maxCount,
-        String metadataJson) {
+    public StreamMetadataResult(String streamId,
+                                int metadataStreamVersion,
+                                Integer maxAge,
+                                Integer maxCount,
+                                String metadataJson) {
         this.streamId = streamId;
         this.metadataStreamVersion = metadataStreamVersion;
         this.maxAge = maxAge;

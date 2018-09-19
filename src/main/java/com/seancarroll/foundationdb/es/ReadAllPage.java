@@ -46,13 +46,12 @@ public class ReadAllPage {
      * @param readDirection The direction of the the read request.
      * @param messages The collection messages read.
      */
-    public ReadAllPage(
-        long fromPosition,
-        long nextPosition,
-        boolean isEnd,
-        ReadDirection readDirection,
-        ReadNextAllPage readNext,
-        StreamMessage[] messages) {
+    public ReadAllPage(long fromPosition,
+                       long nextPosition,
+                       boolean isEnd,
+                       ReadDirection readDirection,
+                       ReadNextAllPage readNext,
+                       StreamMessage[] messages) {
         this.fromPosition = fromPosition;
         this.nextPosition = nextPosition;
         this.isEnd = isEnd;

@@ -102,18 +102,16 @@ public class ReadStreamPage {
      * @param isEnd - Whether or not this is the end of the stream.
      * @param readNext - The messages read.
      */
-    public ReadStreamPage(
-        String streamId,
-        PageReadStatus status,
-        int fromStreamVersion,
-        int nextStreamVersion,
-        int lastStreamVersion,
-        long lastStreamPosition,
-        ReadDirection readDirection,
-        boolean isEnd,
-        ReadNextStreamPage readNext,
-        StreamMessage[] messages) {
-
+    public ReadStreamPage(String streamId,
+                          PageReadStatus status,
+                          int fromStreamVersion,
+                          int nextStreamVersion,
+                          int lastStreamVersion,
+                          long lastStreamPosition,
+                          ReadDirection readDirection,
+                          boolean isEnd,
+                          ReadNextStreamPage readNext,
+                          StreamMessage[] messages) {
         this.streamId = streamId;
         this.status = status;
         this.fromStreamVersion = fromStreamVersion;
