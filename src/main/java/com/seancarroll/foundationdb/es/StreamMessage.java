@@ -1,5 +1,6 @@
 package com.seancarroll.foundationdb.es;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
 import org.joda.time.DateTime;
 
@@ -7,7 +8,7 @@ import java.util.UUID;
 
 public class StreamMessage {
 
-    private final long position;
+    private final Versionstamp position;
     private final DateTime createdUtc;
     private final UUID messageId;
     private final byte[] metadata;
@@ -19,7 +20,7 @@ public class StreamMessage {
     public StreamMessage(String streamId,
                          UUID messageId,
                          int streamVersion,
-                         long position,
+                         Versionstamp position,
                          DateTime createdUtc,
                          String type,
                          byte[] metadata,
@@ -34,7 +35,7 @@ public class StreamMessage {
         this.data = data;
     }
 
-    public long getPosition() {
+    public Versionstamp getPosition() {
         return position;
     }
 

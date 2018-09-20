@@ -97,13 +97,15 @@ public class EventStoreLayer implements EventStore {
 
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
-                    latestStreamVersion.incrementAndGet();
+                    // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
+                    // event store bounces between those as well as position and event number
+                    int eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber);
 
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
@@ -213,13 +215,13 @@ public class EventStoreLayer implements EventStore {
 
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
-                    latestStreamVersion.incrementAndGet();
+                    int eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber);
 
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
@@ -268,16 +270,16 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount) {
+    public ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllInternal(fromPositionInclusive, maxCount, false);
     }
 
     @Override
-    public ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount) {
+    public ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllInternal(fromPositionInclusive, maxCount, true);
     }
 
-    private ReadAllPage readAllInternal(long fromPositionInclusive, int maxCount, boolean reverse) {
+    private ReadAllPage readAllInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
@@ -289,11 +291,15 @@ public class EventStoreLayer implements EventStore {
             int rangeCount =  maxCount + 1;
 
             // TODO: look at the various streaming modes to determine best fit
+            // TODO: fix range query
+            // TODO: would need to change based on forward or backwards
+            // Range range = new Range(fromPositionInclusive.getBytes(), Position.END.getBytes());
+            // Range range = globalSubspace.range(Tuple.from(new byte[0], Position.END.getBytes()));
             AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), rangeCount, reverse);
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
-                ReadNextAllPage readNext = (Long nextPosition) -> readAllForwards(nextPosition, maxCount);
+                ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwards(nextPosition, maxCount);
 
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
@@ -309,14 +315,16 @@ public class EventStoreLayer implements EventStore {
                 int limit = Math.min(maxCount, kvs.size());
                 StreamMessage[] messages = new StreamMessage[limit];
                 for (int i = 0; i < limit; i++) {
-                    Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
+                    KeyValue kv = kvs.get(i);
+                    Tuple key = globalSubspace.unpack(kv.getKey());
+                    Tuple tupleValue = Tuple.fromBytes(kv.getValue());
 
                     // TODO: how to handle streamId, messageId, stream version, position, etc...
                     StreamMessage message = new StreamMessage(
                         tupleValue.getString(1),
                         tupleValue.getUUID(0),
-                        0, // TODO: fix
-                        0L, // TODO: fix
+                        (int)tupleValue.getLong(5),
+                        key.getVersionstamp(0),
                         DateTime.now(),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
@@ -327,7 +335,7 @@ public class EventStoreLayer implements EventStore {
 
                 return new ReadAllPage(
                     fromPositionInclusive,
-                    0L, // TODO: fix. If we plan to use Versionstamp we can provide nextPosition unless we do something like nextPosition is populated if not at end and null if at end
+                    null, // TODO: fix. If we plan to use Versionstamp we can provide nextPosition unless we do something like nextPosition is populated if not at end and null if at end
                     maxCount >= kvs.size(),
                     direction,
                     readNext,
@@ -365,6 +373,7 @@ public class EventStoreLayer implements EventStore {
             int rangeCount = maxCount + 1;
 
             // TODO: look at the various streaming modes to determine best fit.
+            // TODO: fix range with paging
             AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), rangeCount, reverse, StreamingMode.WANT_ALL);
 
             try {
@@ -390,13 +399,14 @@ public class EventStoreLayer implements EventStore {
                 int limit = Math.min(maxCount, kvs.size());
                 StreamMessage[] messages = new StreamMessage[limit];
                 for (int i = 0; i < limit; i++) {
-                    Tuple key = streamSubspace.unpack(kvs.get(i).getKey());
-                    Tuple tupleValue = Tuple.fromBytes(kvs.get(i).getValue());
+                    KeyValue kv = kvs.get(i);
+                    Tuple key = streamSubspace.unpack(kv.getKey());
+                    Tuple tupleValue = Tuple.fromBytes(kv.getValue());
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
-                        (int)key.getLong(0), // TODO: fix this.
-                        0L, // TODO: fix
+                        (int)tupleValue.getLong(5),
+                        tupleValue.getVersionstamp(6),
                         DateTime.now(),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),

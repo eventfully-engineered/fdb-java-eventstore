@@ -56,7 +56,7 @@ public class EventStoreLayerTest {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllForwards(0, 2);
+            ReadAllPage forwardPage = es.readAllForwards(Position.START, 2);
             assertNotNull(forwardPage);
             assertEquals(2, forwardPage.getMessages().length);
             assertTrue(forwardPage.isEnd());
@@ -77,7 +77,7 @@ public class EventStoreLayerTest {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllForwards(0, 1);
+            ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
             assertNotNull(forwardPage);
             assertEquals(1, forwardPage.getMessages().length);
             assertFalse(forwardPage.isEnd());
@@ -98,7 +98,7 @@ public class EventStoreLayerTest {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllForwards(0, 4);
+            ReadAllPage forwardPage = es.readAllForwards(Position.START, 4);
             assertNotNull(forwardPage);
             assertEquals(4, forwardPage.getMessages().length);
             assertTrue(forwardPage.isEnd());
@@ -118,11 +118,17 @@ public class EventStoreLayerTest {
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             // TODO: improve test
-            ReadAllPage forwardPage = es.readAllForwards(0, 1);
+            ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
             assertNotNull(forwardPage);
+            //assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+            //System.out.println(forwardPage.getMessages()[0].getMessageId());
 
             ReadAllPage nextPage = forwardPage.readNext();
             assertNotNull(nextPage);
+            //System.out.println(nextPage.getMessages()[0].getMessageId());
+            //assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
+
+
         }
     }
 
@@ -136,7 +142,7 @@ public class EventStoreLayerTest {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadAllPage backwardPage = es.readAllBackwards(0, 1);
+            ReadAllPage backwardPage = es.readAllBackwards(Position.START, 1);
 
             assertNotNull(backwardPage);
             assertEquals(1, backwardPage.getMessages().length);
@@ -159,7 +165,7 @@ public class EventStoreLayerTest {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllBackwards(0, 4);
+            ReadAllPage forwardPage = es.readAllBackwards(Position.START, 4);
 
             assertNotNull(forwardPage);
             assertEquals(4, forwardPage.getMessages().length);

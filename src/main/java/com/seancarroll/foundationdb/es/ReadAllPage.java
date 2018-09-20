@@ -1,5 +1,6 @@
 package com.seancarroll.foundationdb.es;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
 
 /**
@@ -14,12 +15,12 @@ public class ReadAllPage {
     /**
      * Represents the position where this page was read from
      */
-    private final long fromPosition;
+    private final Versionstamp fromPosition;
 
     /**
      * Represents the position where the next page should be read from
      */
-    private final long nextPosition;
+    private final Versionstamp nextPosition;
 
     /**
      * True if page reached end of the all stream at the time of reading. Otherwise false
@@ -46,8 +47,8 @@ public class ReadAllPage {
      * @param readDirection The direction of the the read request.
      * @param messages The collection messages read.
      */
-    public ReadAllPage(long fromPosition,
-                       long nextPosition,
+    public ReadAllPage(Versionstamp fromPosition,
+                       Versionstamp nextPosition,
                        boolean isEnd,
                        ReadDirection readDirection,
                        ReadNextAllPage readNext,
@@ -68,12 +69,11 @@ public class ReadAllPage {
         return readNext.get(nextPosition);
     }
 
-
-    public long getFromPosition() {
+    public Versionstamp getFromPosition() {
         return fromPosition;
     }
 
-    public long getNextPosition() {
+    public Versionstamp getNextPosition() {
         return nextPosition;
     }
 
