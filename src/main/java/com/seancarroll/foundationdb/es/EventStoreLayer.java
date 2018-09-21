@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -293,9 +294,14 @@ public class EventStoreLayer implements EventStore {
             // TODO: look at the various streaming modes to determine best fit
             // TODO: fix range query
             // TODO: would need to change based on forward or backwards
-            // Range range = new Range(fromPositionInclusive.getBytes(), Position.END.getBytes());
-            // Range range = globalSubspace.range(Tuple.from(new byte[0], Position.END.getBytes()));
-            AsyncIterable<KeyValue> r = tr.getRange(globalSubspace.range(), rangeCount, reverse);
+            // Ranges appear to be begin (inclusive) and end (exclusive) and not sure how we could have begin be exclusive
+            // TODO: we may need to do something different for begin and end when reverse
+            AsyncIterable<KeyValue> r = tr.getRange(
+                globalSubspace.pack(Tuple.from(fromPositionInclusive)),
+                globalSubspace.pack(Position.END),
+                rangeCount,
+                reverse,
+                StreamingMode.WANT_ALL);
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
@@ -333,9 +339,28 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
+                // TODO: This is pretty terrible...can we think of a better/cleaner way to do this?
+                // TODO: I think we may need to have this be fromPositionExclusive.
+                // Would it be confusing to have this be exclusive while the stream be inclusive?
+                // This also doesnt work if user version is 0 because user version must be unsigned short
+                // Versionstamp nextPosition = reverse
+                //     ? Versionstamp.complete(messages[limit - 1].getPosition().getTransactionVersion(), messages[limit - 1].getPosition().getUserVersion() - 1)
+                //    : Versionstamp.complete(messages[limit - 1].getPosition().getTransactionVersion(), messages[limit - 1].getPosition().getUserVersion() + 1);
+
+                // if we are at the end return next position as null otherwise
+                // grab it from the last item from the range query which is outside the slice we want
+                // TODO: fix this.
+                final Versionstamp nextPosition;
+                if (maxCount >= kvs.size()) {
+                    nextPosition = null;
+                } else {
+                    Tuple nextPositionKey = globalSubspace.unpack(kvs.get(maxCount).getKey());
+                    nextPosition = nextPositionKey.getVersionstamp(0);
+                }
+
                 return new ReadAllPage(
                     fromPositionInclusive,
-                    null, // TODO: fix. If we plan to use Versionstamp we can provide nextPosition unless we do something like nextPosition is populated if not at end and null if at end
+                    nextPosition,
                     maxCount >= kvs.size(),
                     direction,
                     readNext,
@@ -374,12 +399,18 @@ public class EventStoreLayer implements EventStore {
 
             // TODO: look at the various streaming modes to determine best fit.
             // TODO: fix range with paging
-            AsyncIterable<KeyValue> r = tr.getRange(streamSubspace.range(), rangeCount, reverse, StreamingMode.WANT_ALL);
+            // TODO: we may need to do something different for begin and end when reverse
+            AsyncIterable<KeyValue> r = tr.getRange(
+                streamSubspace.pack(Tuple.from(fromVersionInclusive)),
+                streamSubspace.pack(Tuple.from(Integer.MAX_VALUE)),
+                rangeCount,
+                reverse,
+                StreamingMode.WANT_ALL);
 
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
-                ReadNextStreamPage readNext = (int nextPosition) -> readStreamForwards(streamId, fromVersionInclusive, maxCount);
+                ReadNextStreamPage readNext = (int nextPosition) -> readStreamForwards(streamId, nextPosition, maxCount);
 
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
@@ -415,15 +446,23 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
-                int nextStreamVersion = reverse
-                    ? messages[limit - 1].getStreamVersion() - 1
-                    : messages[limit - 1].getStreamVersion() + 1;
+//                int nextStreamVersion = reverse
+//                    ? messages[limit - 1].getStreamVersion() - 1
+//                    : messages[limit - 1].getStreamVersion() + 1;
+
+                final int nextPosition;
+                if (maxCount >= kvs.size()) {
+                    nextPosition = StreamPosition.END;
+                } else {
+                    Tuple nextPositionValue = Tuple.fromBytes(kvs.get(maxCount).getValue());
+                    nextPosition = (int)nextPositionValue.getLong(5);
+                }
 
                 return new ReadStreamPage(
                     streamId,
                     PageReadStatus.SUCCESS,
                     fromVersionInclusive,
-                    nextStreamVersion,
+                    nextPosition,
                     0, // TODO: fix
                     0L, // TODO: fix
                     direction,
@@ -437,6 +476,10 @@ public class EventStoreLayer implements EventStore {
 
             return null;
         });
+    }
+
+    public static byte[] intToBytes(final int i) {
+        return ByteBuffer.allocate(4).putInt(i).array();
     }
 
     @Override
@@ -482,7 +525,6 @@ public class EventStoreLayer implements EventStore {
     private Subspace getStreamSubspace(String streamHash) {
         return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash));
     }
-
 
 //    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
 //    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {

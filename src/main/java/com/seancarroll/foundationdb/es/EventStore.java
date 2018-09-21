@@ -1,5 +1,7 @@
 package com.seancarroll.foundationdb.es;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -8,10 +10,16 @@ import java.util.concurrent.ExecutionException;
  */
 public interface EventStore {
 
-    AppendResult appendToStream(
-        String streamId,
-        int expectedVersion,
-        NewStreamMessage[] messages);
+    /**
+     *
+     * @param streamId
+     * @param expectedVersion
+     * @param messages
+     * @return
+     */
+    AppendResult appendToStream(String streamId,
+                                int expectedVersion,
+                                NewStreamMessage[] messages);
 
     /**
      *
@@ -19,7 +27,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllForwards(long fromPositionInclusive, int maxCount);
+    ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -27,7 +35,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllBackwards(long fromPositionInclusive, int maxCount);
+    ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -36,10 +44,9 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadStreamPage readStreamForwards(
-        String streamId,
-        int fromVersionInclusive,
-        int maxCount);
+    ReadStreamPage readStreamForwards(String streamId,
+                                      int fromVersionInclusive,
+                                      int maxCount);
 
     /**
      *
@@ -58,12 +65,20 @@ public interface EventStore {
      */
     Long readHeadPosition() throws ExecutionException, InterruptedException;
 
-    SetStreamMetadataResult setStreamMetadata(
-        String streamId,
-        int expectedStreamMetadataVersion, // = ExpectedVersion.Any,
-        Integer maxAge,
-        Integer maxCount,
-        String metadataJson);
+    /**
+     *
+     * @param streamId
+     * @param expectedStreamMetadataVersion
+     * @param maxAge
+     * @param maxCount
+     * @param metadataJson
+     * @return
+     */
+    SetStreamMetadataResult setStreamMetadata(String streamId,
+                                              int expectedStreamMetadataVersion, // = ExpectedVersion.Any,
+                                              Integer maxAge,
+                                              Integer maxCount,
+                                              String metadataJson);
 
     /**
      * Gets the stream metadata

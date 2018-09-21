@@ -120,15 +120,11 @@ public class EventStoreLayerTest {
             // TODO: improve test
             ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
             assertNotNull(forwardPage);
-            //assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
-            //System.out.println(forwardPage.getMessages()[0].getMessageId());
+            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
 
             ReadAllPage nextPage = forwardPage.readNext();
             assertNotNull(nextPage);
-            //System.out.println(nextPage.getMessages()[0].getMessageId());
-            //assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
-
-
+            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
         }
     }
 
@@ -142,6 +138,7 @@ public class EventStoreLayerTest {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
+            // TODO: using Position.START here feels strange. EventStore uses Position.END which I think is more logical
             ReadAllPage backwardPage = es.readAllBackwards(Position.START, 1);
 
             assertNotNull(backwardPage);
@@ -173,6 +170,28 @@ public class EventStoreLayerTest {
             assertEquals("type", forwardPage.getMessages()[0].getType());
             assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
 
+        }
+    }
+
+    @Test
+    public void readAllBackwardNextPage() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            // TODO: improve test
+            // Does start make sense here? What does EventStore do?
+            ReadAllPage backwardsPage = es.readAllBackwards(Position.START, 1);
+            assertNotNull(backwardsPage);
+            assertTrue(backwardsPage.getMessages()[0].getMessageId().toString().contains("5"));
+
+            ReadAllPage nextPage = backwardsPage.readNext();
+            assertNotNull(nextPage);
+            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("4"));
         }
     }
 
@@ -253,12 +272,15 @@ public class EventStoreLayerTest {
 
             ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
             assertNotNull(forwardPage);
+            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+
 
             // TODO: improve test
             ReadStreamPage nextPage = forwardPage.getNext();
             assertNotNull(nextPage);
             assertEquals(1, nextPage.getMessages().length);
             assertFalse(nextPage.isEnd());
+            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
 
         }
     }
@@ -305,6 +327,31 @@ public class EventStoreLayerTest {
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", 0, 0));
+        }
+    }
+
+    @Test
+    public void readStreamBackwardsNextPage() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadStreamPage backwardsPage = es.readStreamBackwards("test-stream", 0, 1);
+            assertNotNull(backwardsPage);
+            assertTrue(backwardsPage.getMessages()[0].getMessageId().toString().contains("5"));
+
+
+            // TODO: improve test
+            ReadStreamPage nextPage = backwardsPage.getNext();
+            assertNotNull(nextPage);
+            assertEquals(1, nextPage.getMessages().length);
+            assertFalse(nextPage.isEnd());
+            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("4"));
+
         }
     }
 
