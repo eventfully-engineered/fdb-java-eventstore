@@ -1,5 +1,6 @@
 package com.seancarroll.foundationdb.es;
 
+// TODO: We dont need StreamPosition and StreamVersion
 /**
  * Constants for stream positions
  */
@@ -16,7 +17,7 @@ public class StreamPosition {
     public static final int END = -1;
 
     private StreamPosition() {
-        // only public static fields
+        // public static fields only
     }
 
 }

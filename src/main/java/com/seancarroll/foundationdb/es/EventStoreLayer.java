@@ -20,7 +20,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -99,7 +98,7 @@ public class EventStoreLayer implements EventStore {
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
                     // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
-                    // event store bounces between those as well as position and event number
+                    // eventstore bounces between those as well as position and event number
                     int eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -331,21 +330,13 @@ public class EventStoreLayer implements EventStore {
                         tupleValue.getUUID(0),
                         (int)tupleValue.getLong(5),
                         key.getVersionstamp(0),
-                        DateTime.now(),
+                        DateTime.now(), // TODO: Fix this. Do we even need?
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
                         tupleValue.getBytes(3)
                     );
                     messages[i] = message;
                 }
-
-                // TODO: This is pretty terrible...can we think of a better/cleaner way to do this?
-                // TODO: I think we may need to have this be fromPositionExclusive.
-                // Would it be confusing to have this be exclusive while the stream be inclusive?
-                // This also doesnt work if user version is 0 because user version must be unsigned short
-                // Versionstamp nextPosition = reverse
-                //     ? Versionstamp.complete(messages[limit - 1].getPosition().getTransactionVersion(), messages[limit - 1].getPosition().getUserVersion() - 1)
-                //    : Versionstamp.complete(messages[limit - 1].getPosition().getTransactionVersion(), messages[limit - 1].getPosition().getUserVersion() + 1);
 
                 // if we are at the end return next position as null otherwise
                 // grab it from the last item from the range query which is outside the slice we want
@@ -438,17 +429,13 @@ public class EventStoreLayer implements EventStore {
                         tupleValue.getUUID(0),
                         (int)tupleValue.getLong(5),
                         tupleValue.getVersionstamp(6),
-                        DateTime.now(),
+                        DateTime.now(), // TODO: fix this. Do we even need this?
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
                         tupleValue.getBytes(3)
                     );
                     messages[i] = message;
                 }
-
-//                int nextStreamVersion = reverse
-//                    ? messages[limit - 1].getStreamVersion() - 1
-//                    : messages[limit - 1].getStreamVersion() + 1;
 
                 final int nextPosition;
                 if (maxCount >= kvs.size()) {
@@ -476,10 +463,6 @@ public class EventStoreLayer implements EventStore {
 
             return null;
         });
-    }
-
-    public static byte[] intToBytes(final int i) {
-        return ByteBuffer.allocate(4).putInt(i).array();
     }
 
     @Override

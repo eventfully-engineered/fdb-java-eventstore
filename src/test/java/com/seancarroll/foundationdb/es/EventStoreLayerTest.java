@@ -139,6 +139,7 @@ public class EventStoreLayerTest {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             // TODO: using Position.START here feels strange. EventStore uses Position.END which I think is more logical
+            // However, based on documentation range should always be start, end, reverse where start and end are the same regardless of reverse
             ReadAllPage backwardPage = es.readAllBackwards(Position.START, 1);
 
             assertNotNull(backwardPage);
