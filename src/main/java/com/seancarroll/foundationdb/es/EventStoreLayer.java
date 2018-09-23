@@ -377,6 +377,7 @@ public class EventStoreLayer implements EventStore {
 
     private ReadStreamPage readStreamInternal(String streamId, int fromVersionInclusive, int maxCount, boolean reverse) {
         Preconditions.checkNotNull(streamId);
+        Preconditions.checkArgument(fromVersionInclusive >= 0, "fromVersionInclusive must greater than 0");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
