@@ -90,7 +90,5 @@ public interface EventStore {
 
     void deleteMessage(String streamId, UUID messageId);
 
-    // TODO: Do we want to include a method to read a specific event?
-    // something like readEvent(string stream, UUID eventNumber)
-
+    ReadEventResult readEvent(String stream, long eventNumber);
 }

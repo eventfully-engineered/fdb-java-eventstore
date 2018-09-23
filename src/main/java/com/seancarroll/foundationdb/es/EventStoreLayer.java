@@ -264,6 +264,8 @@ public class EventStoreLayer implements EventStore {
         throw new RuntimeException("Not implemented exception");
     }
 
+
+
     @Override
     public SetStreamMetadataResult setStreamMetadata(String streamId, int expectedStreamMetadataVersion, Integer maxAge, Integer maxCount, String metadataJson) {
         return null;
@@ -496,6 +498,45 @@ public class EventStoreLayer implements EventStore {
     @Override
     public StreamMetadataResult getStreamMetadata(String streamId) {
         return null;
+    }
+
+    @Override
+    public ReadEventResult readEvent(String stream, long eventNumber) {
+        Preconditions.checkNotNull(stream);
+        // Ensure.NotNullOrEmpty(stream, "stream");
+        Preconditions.checkArgument(eventNumber >= -1);
+
+        HashCode streamHash = createHash(stream);
+        return database.read(tr -> {
+
+            Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+
+            try {
+                byte[] bytes = tr.get(streamSubspace.pack(Tuple.from(eventNumber))).get();
+                if (bytes == null) {
+                    return new ReadEventResult(ReadEventStatus.NO_STREAM, stream, eventNumber, null);
+                }
+
+                Tuple value = Tuple.fromBytes(bytes);
+                StreamMessage message = new StreamMessage(
+                    stream,
+                    value.getUUID(0),
+                    (int)value.getLong(5),
+                    value.getVersionstamp(6),
+                    DateTime.now(), // TODO: fix this. Do we even need this?
+                    value.getString(2),
+                    value.getBytes(4),
+                    value.getBytes(3)
+                );
+                return new ReadEventResult(ReadEventStatus.SUCCESS, stream, eventNumber, message);
+
+            } catch (InterruptedException|ExecutionException e) {
+                // TODO: what do we actually want to do here
+                LOG.error("error reading head position", e);
+            }
+
+            return null;
+        });
     }
 
     private static HashCode createHash(String streamId) {
