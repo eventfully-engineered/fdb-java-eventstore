@@ -2,14 +2,13 @@ package com.seancarroll.foundationdb.es;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
-import org.joda.time.DateTime;
 
 import java.util.UUID;
 
 public class StreamMessage {
 
     private final Versionstamp position;
-    private final DateTime createdUtc;
+    private final Long createdUtc;
     private final UUID messageId;
     private final byte[] metadata;
     private final int streamVersion;
@@ -21,7 +20,7 @@ public class StreamMessage {
                          UUID messageId,
                          int streamVersion,
                          Versionstamp position,
-                         DateTime createdUtc,
+                         Long createdUtc,
                          String type,
                          byte[] metadata,
                          byte[] data) {
@@ -39,7 +38,11 @@ public class StreamMessage {
         return position;
     }
 
-    public DateTime getCreatedUtc() {
+    /**
+     * A long representing the milliseconds since the epoch when the was created in the system
+     * @return
+     */
+    public Long getCreatedUtc() {
         return createdUtc;
     }
 
@@ -75,6 +78,7 @@ public class StreamMessage {
             .add("streamVersion", getStreamVersion())
             .add("position", getPosition())
             .add("type", getType())
+            .add("createdUtc", getCreatedUtc())
             .toString();
     }
 }
