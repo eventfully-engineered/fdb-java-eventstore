@@ -6,6 +6,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ReadEventStreamFowardTests extends TestFixture {
@@ -17,60 +18,7 @@ public class ReadEventStreamFowardTests extends TestFixture {
     }
 
     @Test
-    public void streamNotFoundTest() {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
-
-            assertNotNull(forwardPage);
-            assertEquals(0, forwardPage.getMessages().length);
-            assertTrue(forwardPage.isEnd());
-            assertEquals(PageReadStatus.STREAM_NOT_FOUND, forwardPage.getStatus());
-            // TODO: ugh dont like the need to call intValue...Fix
-            assertEquals(StreamVersion.END, forwardPage.getNextStreamVersion());
-        }
-    }
-
-    @Test
-    public void readStreamForward() {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
-
-            assertNotNull(forwardPage);
-            assertEquals(1, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
-            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
-            assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
-            assertEquals(0, forwardPage.getMessages()[0].getStreamVersion());
-            assertEquals(1, forwardPage.getNextStreamVersion());
-        }
-    }
-
-    @Test
-    public void throwWhenMaxCountExceedsMaxReadCount() {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
-
-        }
-    }
-
-    @Test
-    public void shouldThrowIfCountLessThanOrEqualZero() {
+    public void shouldThrowWhenCountLessThanOrEqualZero() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -80,6 +28,142 @@ public class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
+    @Test
+    public void shouldThrowWhenStartLessThanZero() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", -1, 1));
+        }
+    }
+
+    @Test
+    public void shouldThrowWhenMaxCountExceedsMaxReadCount() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
+        }
+    }
+
+    @Test
+    public void shouldNotifyUsingStatusCodeWhenStreamNotFound() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            ReadStreamPage read = es.readStreamForwards("test-stream", 0, 1);
+
+            assertEquals(PageReadStatus.STREAM_NOT_FOUND, read.getStatus());
+        }
+    }
+
+    @Test
+    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+        fail();
+    }
+
+
+//    @Test
+//    public void shouldReturnNoEventsWhenStreamIsEmpty() {
+//
+//    }
+
+
+    @Test
+    public void shouldReturnEmptySliceForNonExistingRange() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            // ExpectedVersion.EmptyStream
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, 10, 1);
+
+            assertEquals(0, read.getMessages().length);
+        }
+    }
+
+    @Test
+    public void shouldReturnPartialSliceWhenNotEnoughEventsInStream() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            // ExpectedVersion.EmptyStream
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, 4, 5);
+
+            assertEquals(1, read.getMessages().length);
+        }
+    }
+
+    @Test
+    public void shouldReturnEventsInSameOrderAsWritten() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, 0, messages.length);
+
+            assertEventDataEqual(messages, read.getMessages());
+        }
+    }
+
+    @Test
+    public void shouldBeAbleToReadSingleEventFromArbitraryPosition() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, 4, 1);
+
+            assertEventDataEqual(messages[4], read.getMessages()[0]);
+        }
+    }
+
+    @Test
+    public void shouldBeAbleToReadSliceFromArbritaryPosition() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, 3, 2);
+
+            // TODO: use a comparator something like EventDataComparer
+            assertEquals(2, read.getMessages().length);
+        }
+    }
+
+    // TODO: improve test
     @Test
     public void readStreamForwardNextPage() {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -94,8 +178,6 @@ public class ReadEventStreamFowardTests extends TestFixture {
             assertNotNull(forwardPage);
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
 
-
-            // TODO: improve test
             ReadStreamPage nextPage = forwardPage.getNext();
             assertNotNull(nextPage);
             assertEquals(1, nextPage.getMessages().length);
@@ -105,16 +187,4 @@ public class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
-
-    // throw_if_count_le_zero
-    // throw_if_start_lt_zero
-    // notify_using_status_code_if_stream_not_found
-    // notify_using_status_code_if_stream_was_deleted
-    // return_no_events_when_called_on_empty_stream
-    // return_empty_slice_when_called_on_non_existing_range
-    // return_partial_slice_if_not_enough_events_in_stream
-    // throw_when_got_int_max_value_as_maxcount
-    // return_events_in_same_order_as_written
-    // be_able_to_read_single_event_from_arbitrary_position
-    // be_able_to_read_slice_from_arbitrary_position
 }

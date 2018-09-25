@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ReadEventTests extends TestFixture {
@@ -24,7 +25,7 @@ public class ReadEventTests extends TestFixture {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            assertThrows(NullPointerException.class, () -> es.readEvent(null, 0));
+            assertThrows(IllegalArgumentException.class, () -> es.readEvent(null, 0));
         }
     }
 
@@ -35,41 +36,76 @@ public class ReadEventTests extends TestFixture {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            assertThrows(NullPointerException.class, () -> es.readEvent("", 0));
+            assertThrows(IllegalArgumentException.class, () -> es.readEvent("", 0));
         }
     }
 
-    // throw_if_event_number_is_less_than_minus_one
     @Test
     public void shouldThrowWhenEventNumberIsLessThanNegativeOne() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
+            assertThrows(IllegalArgumentException.class, () -> es.readEvent("test-stream", -1));
+        }
     }
 
-    // notify_using_status_code_if_stream_not_found
     @Test
     public void shouldNotifyUsingStatusCodeIfStreamNotFound() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
+            ReadEventResult read = es.readEvent("test-stream", 1);
+
+            assertEquals(ReadEventStatus.NO_STREAM, read.getStatus());
+            assertNull(read.getEvent());
+            assertEquals("test-stream", read.getStream());
+            assertEquals(1, read.getEventNumber());
+        }
     }
 
-    // return_no_stream_if_requested_last_event_in_empty_stream
     @Test
     public void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() {
 
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            ReadEventResult read = es.readEvent("test-stream", 1);
+
+            assertEquals(ReadEventStatus.NO_STREAM, read.getStatus());
+        }
     }
 
-    // notify_using_status_code_if_stream_was_deleted
     @Test
     public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
 
     }
 
-    // notify_using_status_code_if_stream_does_not_have_event
     @Test
     public void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadEventResult read = es.readEvent(stream, 10);
+
+            assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
+            assertNull(read.getEvent());
+            assertEquals("test-stream", read.getStream());
+            assertEquals(10, read.getEventNumber());
+        }
     }
 
-    // return_existing_event
     @Test
     public void shouldReturnExistingEvent() {
         FDB fdb = FDB.selectAPIVersion(520);
