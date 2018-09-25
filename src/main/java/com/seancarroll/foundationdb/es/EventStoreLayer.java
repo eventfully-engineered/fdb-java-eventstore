@@ -128,7 +128,7 @@ public class EventStoreLayer implements EventStore {
             byte[] trVersion = trVersionFuture.get();
 
             Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
-            return new AppendResult(latestStreamVersion.get(), 0L);
+            return new AppendResult(latestStreamVersion.get(), completedVersion);
 
         } catch (InterruptedException|ExecutionException e) {
             // TODO: what to actually do here
@@ -188,7 +188,7 @@ public class EventStoreLayer implements EventStore {
             byte[] trVersion = trVersionFuture.get();
 
             Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
-            return new AppendResult(latestStreamVersion.get(), 0L);
+            return new AppendResult(latestStreamVersion.get(), completedVersion);
 
         } catch (InterruptedException|ExecutionException e) {
             // TODO: what to actually do here
@@ -250,7 +250,7 @@ public class EventStoreLayer implements EventStore {
             // TODO: this is a bit icky
             // TODO: set currentPosition
             Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
-            return new AppendResult(latestStreamVersion.get(), 0L);
+            return new AppendResult(latestStreamVersion.get(), completedVersion);
 
         } catch (InterruptedException|ExecutionException e) {
             // TODO: what to actually do here

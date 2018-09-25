@@ -1,5 +1,6 @@
 package com.seancarroll.foundationdb.es;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
 
 /**
@@ -19,14 +20,14 @@ public class AppendResult {
     /**
      * The current position of the stream after the append operation was performed
      */
-    private final long currentPosition;
+    private final Versionstamp currentPosition;
 
     /**
      * Constructs new {@link AppendResult}
      * @param currentVersion The current version of the stream after the append operation was performed.
      * @param currentPosition The current position of the stream after the append operation was performed.
      */
-    public AppendResult(int currentVersion, long currentPosition) {
+    public AppendResult(int currentVersion, Versionstamp currentPosition) {
         this(null, currentVersion, currentPosition);
     }
 
@@ -35,7 +36,7 @@ public class AppendResult {
      * @param currentVersion The current version of the stream after the append operation was performed.
      * @param currentPosition The current position of the stream after the append operation was performed.
      */
-    public AppendResult(Integer maxCount, int currentVersion, long currentPosition) {
+    public AppendResult(Integer maxCount, int currentVersion, Versionstamp currentPosition) {
         this.maxCount = maxCount;
         this.currentVersion = currentVersion;
         this.currentPosition = currentPosition;
@@ -49,7 +50,7 @@ public class AppendResult {
         return currentVersion;
     }
 
-    public long getCurrentPosition() {
+    public Versionstamp getCurrentPosition() {
         return currentPosition;
     }
 
