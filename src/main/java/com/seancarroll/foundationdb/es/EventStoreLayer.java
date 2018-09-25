@@ -7,9 +7,11 @@ import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,7 +107,7 @@ public class EventStoreLayer implements EventStore {
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber);
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, DateTime.now(DateTimeZone.UTC).getMillis());
 
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
@@ -121,6 +123,7 @@ public class EventStoreLayer implements EventStore {
         });
 
         // TODO: all this is pretty terrible
+        // TODO: set currentPosition
         try {
             byte[] trVersion = trVersionFuture.get();
 
@@ -154,15 +157,16 @@ public class EventStoreLayer implements EventStore {
                     throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId, StreamVersion.NONE));
                 }
 
+                // TODO: is StreamVersion.END right?
                 latestStreamVersion.set(StreamVersion.END);
                 for (int i = 0; i < messages.length; i++) {
-                    latestStreamVersion.incrementAndGet();
+                    int eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                     // TODO: how should we store metadata
                     NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata());
+                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, DateTime.now(DateTimeZone.UTC).getMillis());
 
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
@@ -170,6 +174,7 @@ public class EventStoreLayer implements EventStore {
 
                 return tr.getVersionstamp();
             } catch (Exception e) {
+                // TODO: is there a way to only catch conflicts?
                 // TODO: what to actually do here
                 LOG.error("error appending to stream", e);
             }
@@ -178,6 +183,7 @@ public class EventStoreLayer implements EventStore {
         });
 
         // TODO: all this is pretty terrible
+        // TODO: set currentPosition
         try {
             byte[] trVersion = trVersionFuture.get();
 
@@ -220,11 +226,12 @@ public class EventStoreLayer implements EventStore {
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                     // TODO: how should we store metadata
+                    long createdDateUtcEpoch = DateTime.now(DateTimeZone.UTC).getMillis();
                     NewStreamMessage message = messages[i];
-                    Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber);
-
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                    Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
+                    Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
                 }
 
                 return tr.getVersionstamp();
@@ -241,6 +248,7 @@ public class EventStoreLayer implements EventStore {
             byte[] trVersion = trVersionFuture.get();
 
             // TODO: this is a bit icky
+            // TODO: set currentPosition
             Versionstamp completedVersion = Versionstamp.complete(trVersion, messages.length - 1);
             return new AppendResult(latestStreamVersion.get(), 0L);
 
@@ -254,7 +262,10 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public void deleteStream(String streamId, int expectedVersion) {
-        // database.run(tr -> null);
+        // TODO: how to handle?
+        // We can clear the stream subspace via clear(Range) but how to delete from global subspace?
+        // would we need a scavenger process? something else?
+        // database.run(tr -> {);
         throw new RuntimeException("Not implemented exception");
     }
 
@@ -263,8 +274,6 @@ public class EventStoreLayer implements EventStore {
         // database.run(tr -> null);
         throw new RuntimeException("Not implemented exception");
     }
-
-
 
     @Override
     public SetStreamMetadataResult setStreamMetadata(String streamId, int expectedStreamMetadataVersion, Integer maxAge, Integer maxCount, String metadataJson) {
@@ -332,7 +341,7 @@ public class EventStoreLayer implements EventStore {
                         tupleValue.getUUID(0),
                         (int)tupleValue.getLong(5),
                         key.getVersionstamp(0),
-                        DateTime.now(), // TODO: Fix this. Do we even need?
+                        tupleValue.getLong(6),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
                         tupleValue.getBytes(3)
@@ -431,8 +440,8 @@ public class EventStoreLayer implements EventStore {
                         streamId,
                         tupleValue.getUUID(0),
                         (int)tupleValue.getLong(5),
-                        tupleValue.getVersionstamp(6),
-                        DateTime.now(), // TODO: fix this. Do we even need this?
+                        tupleValue.getVersionstamp(7),
+                        tupleValue.getLong(6),
                         tupleValue.getString(2),
                         tupleValue.getBytes(4),
                         tupleValue.getBytes(3)
@@ -502,8 +511,7 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public ReadEventResult readEvent(String stream, long eventNumber) {
-        Preconditions.checkNotNull(stream);
-        // Ensure.NotNullOrEmpty(stream, "stream");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(stream));
         Preconditions.checkArgument(eventNumber >= -1);
 
         HashCode streamHash = createHash(stream);
@@ -512,6 +520,7 @@ public class EventStoreLayer implements EventStore {
             Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
             try {
+
                 byte[] bytes = tr.get(streamSubspace.pack(Tuple.from(eventNumber))).get();
                 if (bytes == null) {
                     return new ReadEventResult(ReadEventStatus.NO_STREAM, stream, eventNumber, null);
@@ -522,8 +531,8 @@ public class EventStoreLayer implements EventStore {
                     stream,
                     value.getUUID(0),
                     (int)value.getLong(5),
-                    value.getVersionstamp(6),
-                    DateTime.now(), // TODO: fix this. Do we even need this?
+                    value.getVersionstamp(7),
+                    value.getLong(6),
                     value.getString(2),
                     value.getBytes(4),
                     value.getBytes(3)
