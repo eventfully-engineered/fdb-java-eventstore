@@ -18,7 +18,7 @@ public interface EventStore {
      * @return
      */
     AppendResult appendToStream(String streamId,
-                                int expectedVersion,
+                                long expectedVersion,
                                 NewStreamMessage[] messages);
 
     /**
@@ -45,7 +45,7 @@ public interface EventStore {
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     ReadStreamPage readStreamForwards(String streamId,
-                                      int fromVersionInclusive,
+                                      long fromVersionInclusive,
                                       int maxCount);
 
     /**
@@ -56,7 +56,7 @@ public interface EventStore {
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     ReadStreamPage readStreamBackwards(String streamId,
-                                       int fromVersionInclusive,
+                                       long fromVersionInclusive,
                                        int maxCount);
 
     /**
@@ -75,7 +75,7 @@ public interface EventStore {
      * @return
      */
     SetStreamMetadataResult setStreamMetadata(String streamId,
-                                              int expectedStreamMetadataVersion, // = ExpectedVersion.Any,
+                                              long expectedStreamMetadataVersion, // = ExpectedVersion.Any,
                                               Integer maxAge,
                                               Integer maxCount,
                                               String metadataJson);
@@ -86,7 +86,7 @@ public interface EventStore {
      */
     StreamMetadataResult getStreamMetadata(String streamId);
 
-    void deleteStream(String streamId, int expectedVersion);
+    void deleteStream(String streamId, long expectedVersion);
 
     void deleteMessage(String streamId, UUID messageId);
 

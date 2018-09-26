@@ -15,7 +15,7 @@ public class AppendResult {
      * The current version of the stream after the append operation was performed
      *
      */
-    private final int currentVersion;
+    private final long currentVersion;
 
     /**
      * The current position of the stream after the append operation was performed
@@ -27,7 +27,7 @@ public class AppendResult {
      * @param currentVersion The current version of the stream after the append operation was performed.
      * @param currentPosition The current position of the stream after the append operation was performed.
      */
-    public AppendResult(int currentVersion, Versionstamp currentPosition) {
+    public AppendResult(long currentVersion, Versionstamp currentPosition) {
         this(null, currentVersion, currentPosition);
     }
 
@@ -36,7 +36,7 @@ public class AppendResult {
      * @param currentVersion The current version of the stream after the append operation was performed.
      * @param currentPosition The current position of the stream after the append operation was performed.
      */
-    public AppendResult(Integer maxCount, int currentVersion, Versionstamp currentPosition) {
+    public AppendResult(Integer maxCount, long currentVersion, Versionstamp currentPosition) {
         this.maxCount = maxCount;
         this.currentVersion = currentVersion;
         this.currentPosition = currentPosition;
@@ -46,7 +46,7 @@ public class AppendResult {
         return maxCount;
     }
 
-    public int getCurrentVersion() {
+    public long getCurrentVersion() {
         return currentVersion;
     }
 

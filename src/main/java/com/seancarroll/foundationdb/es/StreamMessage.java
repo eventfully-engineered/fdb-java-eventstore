@@ -11,14 +11,14 @@ public class StreamMessage {
     private final Long createdUtc;
     private final UUID messageId;
     private final byte[] metadata;
-    private final int streamVersion;
+    private final long streamVersion;
     private final String streamId;
     private final String type;
     private final byte[] data;
 
     public StreamMessage(String streamId,
                          UUID messageId,
-                         int streamVersion,
+                         long streamVersion,
                          Versionstamp position,
                          Long createdUtc,
                          String type,
@@ -54,7 +54,7 @@ public class StreamMessage {
         return metadata;
     }
 
-    public int getStreamVersion() {
+    public long getStreamVersion() {
         return streamVersion;
     }
 

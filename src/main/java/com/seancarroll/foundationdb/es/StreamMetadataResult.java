@@ -16,7 +16,7 @@ public class StreamMetadataResult {
     /**
      * The version of the metadata stream. Can be used for concurrency control
      */
-    private final int metadataStreamVersion;
+    private final long metadataStreamVersion;
 
     private final Integer maxAge;
 
@@ -24,12 +24,12 @@ public class StreamMetadataResult {
 
     private final String metadataJson;
 
-    public StreamMetadataResult(String streamId, int metadataStreamVersion) {
+    public StreamMetadataResult(String streamId, long metadataStreamVersion) {
         this(streamId, metadataStreamVersion, null);
     }
 
 
-    public StreamMetadataResult(String streamId, int metadataStreamVersion, String metadataJson) {
+    public StreamMetadataResult(String streamId, long metadataStreamVersion, String metadataJson) {
         this(streamId, metadataStreamVersion, null, null, metadataJson);
     }
 
@@ -42,7 +42,7 @@ public class StreamMetadataResult {
      * @param metadataJson Custom metadata serialized as JSON
      */
     public StreamMetadataResult(String streamId,
-                                int metadataStreamVersion,
+                                long metadataStreamVersion,
                                 Integer maxAge,
                                 Integer maxCount,
                                 String metadataJson) {
@@ -57,7 +57,7 @@ public class StreamMetadataResult {
         return streamId;
     }
 
-    public int getMetadataStreamVersion() {
+    public long getMetadataStreamVersion() {
         return metadataStreamVersion;
     }
 

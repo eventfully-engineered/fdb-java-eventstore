@@ -22,7 +22,7 @@ public class ReadStreamPage {
      * The version of the stream that read from.
      * EventStore has FromEventNumber - The starting point (represented as a sequence number) of the read operation.
      */
-    private final int fromStreamVersion;
+    private final long fromStreamVersion;
 
 
     /**
@@ -35,13 +35,13 @@ public class ReadStreamPage {
      * The next message version that can be read.
      * EventStore has NextEventNumber - The next event number that can be read.
      */
-    private final int nextStreamVersion;
+    private final long nextStreamVersion;
 
     /**
      * The version of the last message in the stream.
      * EventStore has LastEventNumber - The last event number in the stream.
      */
-    private final int lastStreamVersion;
+    private final long lastStreamVersion;
 
     /**
      * The direction of read operation.
@@ -104,9 +104,9 @@ public class ReadStreamPage {
      */
     public ReadStreamPage(String streamId,
                           PageReadStatus status,
-                          int fromStreamVersion,
-                          int nextStreamVersion,
-                          int lastStreamVersion,
+                          long fromStreamVersion,
+                          long nextStreamVersion,
+                          long lastStreamVersion,
                           long lastStreamPosition,
                           ReadDirection readDirection,
                           boolean isEnd,
@@ -128,7 +128,7 @@ public class ReadStreamPage {
         return messages;
     }
 
-    public int getFromStreamVersion() {
+    public long getFromStreamVersion() {
         return fromStreamVersion;
     }
 
@@ -136,11 +136,11 @@ public class ReadStreamPage {
         return lastStreamPosition;
     }
 
-    public int getNextStreamVersion() {
+    public long getNextStreamVersion() {
         return nextStreamVersion;
     }
 
-    public int getLastStreamVersion() {
+    public long getLastStreamVersion() {
         return lastStreamVersion;
     }
 

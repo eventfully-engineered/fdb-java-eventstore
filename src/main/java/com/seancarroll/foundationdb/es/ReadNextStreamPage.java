@@ -12,5 +12,5 @@ public interface ReadNextStreamPage {
      * @param nextVersion
      * @return
      */
-    ReadStreamPage get(int nextVersion);
+    ReadStreamPage get(long nextVersion);
 }

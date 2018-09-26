@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -60,11 +61,11 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public AppendResult appendToStream(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+    public AppendResult appendToStream(String streamId, long expectedVersion, NewStreamMessage[] messages) {
         return appendToStreamInternal(streamId, expectedVersion, messages);
     }
 
-    private AppendResult appendToStreamInternal(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+    private AppendResult appendToStreamInternal(String streamId, long expectedVersion, NewStreamMessage[] messages) {
         Preconditions.checkNotNull(streamId);
 
         // TODO: is this how we want to handle this?
@@ -86,14 +87,14 @@ public class EventStoreLayer implements EventStore {
     private AppendResult appendToStreamExpectedVersionAny(String streamId, NewStreamMessage[] messages) {
         HashCode streamHash = createHash(streamId);
 
-        AtomicInteger latestStreamVersion = new AtomicInteger();
+        AtomicLong latestStreamVersion = new AtomicLong();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
                 Subspace globalSubspace = getGlobalSubspace();
                 Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
-                Integer currentStreamVersion = backwardPage.getMessages().length == 0
+                long currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
                     : backwardPage.getNextStreamVersion();
 
@@ -101,7 +102,7 @@ public class EventStoreLayer implements EventStore {
                 for (int i = 0; i < messages.length; i++) {
                     // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
                     // eventstore bounces between those as well as position and event number
-                    int eventNumber = latestStreamVersion.incrementAndGet();
+                    long eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
@@ -200,10 +201,10 @@ public class EventStoreLayer implements EventStore {
 
     // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
-    private AppendResult appendToStreamExpectedVersion(String streamId, int expectedVersion, NewStreamMessage[] messages) {
+    private AppendResult appendToStreamExpectedVersion(String streamId, long expectedVersion, NewStreamMessage[] messages) {
         HashCode streamHash = createHash(streamId);
 
-        AtomicInteger latestStreamVersion = new AtomicInteger();
+        AtomicLong latestStreamVersion = new AtomicLong();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
                 Subspace globalSubspace = getGlobalSubspace();
@@ -211,7 +212,7 @@ public class EventStoreLayer implements EventStore {
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
 
-                Integer currentStreamVersion = backwardPage.getMessages().length == 0
+                long currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
                     : backwardPage.getNextStreamVersion();
 
@@ -221,7 +222,7 @@ public class EventStoreLayer implements EventStore {
 
                 latestStreamVersion.set(currentStreamVersion);
                 for (int i = 0; i < messages.length; i++) {
-                    int eventNumber = latestStreamVersion.incrementAndGet();
+                    long eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
@@ -261,7 +262,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public void deleteStream(String streamId, int expectedVersion) {
+    public void deleteStream(String streamId, long expectedVersion) {
         // TODO: how to handle?
         // We can clear the stream subspace via clear(Range) but how to delete from global subspace?
         // would we need a scavenger process? something else?
@@ -276,7 +277,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public SetStreamMetadataResult setStreamMetadata(String streamId, int expectedStreamMetadataVersion, Integer maxAge, Integer maxCount, String metadataJson) {
+    public SetStreamMetadataResult setStreamMetadata(String streamId, long expectedStreamMetadataVersion, Integer maxAge, Integer maxCount, String metadataJson) {
         return null;
     }
 
@@ -339,7 +340,7 @@ public class EventStoreLayer implements EventStore {
                     StreamMessage message = new StreamMessage(
                         tupleValue.getString(1),
                         tupleValue.getUUID(0),
-                        (int)tupleValue.getLong(5),
+                        tupleValue.getLong(5),
                         key.getVersionstamp(0),
                         tupleValue.getLong(6),
                         tupleValue.getString(2),
@@ -377,16 +378,16 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadStreamPage readStreamForwards(String streamId, int fromVersionInclusive, int maxCount) {
+    public ReadStreamPage readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamInternal(streamId, fromVersionInclusive, maxCount, false);
     }
 
     @Override
-    public ReadStreamPage readStreamBackwards(String streamId, int fromVersionInclusive, int maxCount) {
+    public ReadStreamPage readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamInternal(streamId, fromVersionInclusive, maxCount, true);
     }
 
-    private ReadStreamPage readStreamInternal(String streamId, int fromVersionInclusive, int maxCount, boolean reverse) {
+    private ReadStreamPage readStreamInternal(String streamId, long fromVersionInclusive, int maxCount, boolean reverse) {
         Preconditions.checkNotNull(streamId);
         Preconditions.checkArgument(fromVersionInclusive >= 0, "fromVersionInclusive must greater than 0");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
@@ -413,7 +414,7 @@ public class EventStoreLayer implements EventStore {
             try {
                 ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
 
-                ReadNextStreamPage readNext = (int nextPosition) -> readStreamForwards(streamId, nextPosition, maxCount);
+                ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwards(streamId, nextPosition, maxCount);
 
                 List<KeyValue> kvs = r.asList().get();
                 if (kvs.isEmpty()) {
@@ -439,7 +440,7 @@ public class EventStoreLayer implements EventStore {
                     StreamMessage message = new StreamMessage(
                         streamId,
                         tupleValue.getUUID(0),
-                        (int)tupleValue.getLong(5),
+                        tupleValue.getLong(5),
                         tupleValue.getVersionstamp(7),
                         tupleValue.getLong(6),
                         tupleValue.getString(2),
@@ -449,12 +450,12 @@ public class EventStoreLayer implements EventStore {
                     messages[i] = message;
                 }
 
-                final int nextPosition;
+                final long nextPosition;
                 if (maxCount >= kvs.size()) {
                     nextPosition = StreamPosition.END;
                 } else {
                     Tuple nextPositionValue = Tuple.fromBytes(kvs.get(maxCount).getValue());
-                    nextPosition = (int)nextPositionValue.getLong(5);
+                    nextPosition = nextPositionValue.getLong(5);
                 }
 
                 return new ReadStreamPage(
@@ -530,7 +531,7 @@ public class EventStoreLayer implements EventStore {
                 StreamMessage message = new StreamMessage(
                     stream,
                     value.getUUID(0),
-                    (int)value.getLong(5),
+                    value.getLong(5),
                     value.getVersionstamp(7),
                     value.getLong(6),
                     value.getString(2),
