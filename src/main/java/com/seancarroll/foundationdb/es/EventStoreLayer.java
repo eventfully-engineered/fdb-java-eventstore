@@ -21,7 +21,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -144,7 +143,7 @@ public class EventStoreLayer implements EventStore {
     private AppendResult appendToStreamExpectedVersionNoStream(String streamId, NewStreamMessage[] messages) {
         HashCode streamHash = createHash(streamId);
 
-        AtomicInteger latestStreamVersion = new AtomicInteger();
+        AtomicLong latestStreamVersion = new AtomicLong();
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
             try {
                 Subspace globalSubspace = getGlobalSubspace();
@@ -161,7 +160,7 @@ public class EventStoreLayer implements EventStore {
                 // TODO: is StreamVersion.END right?
                 latestStreamVersion.set(StreamVersion.END);
                 for (int i = 0; i < messages.length; i++) {
-                    int eventNumber = latestStreamVersion.incrementAndGet();
+                    long eventNumber = latestStreamVersion.incrementAndGet();
 
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
@@ -212,9 +211,10 @@ public class EventStoreLayer implements EventStore {
 
                 ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
 
+                LOG.info("backwardPage [{}]", backwardPage);
                 long currentStreamVersion = backwardPage.getMessages().length == 0
                     ? StreamVersion.END
-                    : backwardPage.getNextStreamVersion();
+                    : backwardPage.getNextStreamVersion(); // TODO: this is wrong
 
                 if (!Objects.equals(expectedVersion, currentStreamVersion)) {
                     throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, currentStreamVersion));
@@ -406,7 +406,7 @@ public class EventStoreLayer implements EventStore {
             // TODO: we may need to do something different for begin and end when reverse
             AsyncIterable<KeyValue> r = tr.getRange(
                 streamSubspace.pack(Tuple.from(fromVersionInclusive)),
-                streamSubspace.pack(Tuple.from(Integer.MAX_VALUE)),
+                streamSubspace.pack(Tuple.from(Long.MAX_VALUE)),
                 rangeCount,
                 reverse,
                 StreamingMode.WANT_ALL);
