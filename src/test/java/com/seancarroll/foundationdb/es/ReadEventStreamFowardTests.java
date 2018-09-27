@@ -29,13 +29,13 @@ public class ReadEventStreamFowardTests extends TestFixture {
     }
 
     @Test
-    public void shouldThrowWhenStartLessThanZero() {
+    public void shouldThrowWhenStartLessThanNegativeOne() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", -1, 1));
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", -2, 1));
         }
     }
 
@@ -146,7 +146,7 @@ public class ReadEventStreamFowardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadSliceFromArbritaryPosition() {
+    public void shouldBeAbleToReadSliceFromArbitraryPosition() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
