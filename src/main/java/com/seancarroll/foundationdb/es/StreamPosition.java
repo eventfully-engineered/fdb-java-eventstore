@@ -9,12 +9,12 @@ public class StreamPosition {
     /**
      * The first event in a stream
      */
-    public static final int START = 1;
+    public static final long START = 0;
 
     /**
      *The last event in the stream
      */
-    public static final int END = -1;
+    public static final long END = -1;
 
     private StreamPosition() {
         // public static fields only
