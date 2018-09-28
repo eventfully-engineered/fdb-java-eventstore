@@ -2,6 +2,8 @@ package com.seancarroll.foundationdb.es;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * From SqlStreamStore
  * EventStore has StreamEventsSlice
@@ -29,7 +31,7 @@ public class ReadStreamPage {
      * The position of the last message in the stream.
      * TODO: does EventStore have this?
      */
-    private final long lastStreamPosition;
+    private final long lastStreamPosition; // TODO: should likely be a Versionstamp
 
     /**
      * The next message version that can be read.
@@ -160,7 +162,8 @@ public class ReadStreamPage {
         return isEnd;
     }
 
-    public ReadStreamPage getNext() {
+    public ReadStreamPage getNext() throws ExecutionException, InterruptedException {
+        // TODO: should this just return a ReadNextStreamPage instead?
         return readNext.get(nextStreamVersion);
     }
 

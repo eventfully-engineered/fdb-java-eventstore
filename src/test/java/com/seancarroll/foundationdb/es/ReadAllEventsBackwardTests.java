@@ -6,6 +6,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ReadAllEventsBackwardTests extends TestFixture {
@@ -17,7 +19,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllBackwardsTest() {
+    public void readAllBackwardsTest() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -40,7 +42,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllBackwardsMultipleStreamTest() {
+    public void readAllBackwardsMultipleStreamTest() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -62,7 +64,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllBackwardNextPage() {
+    public void readAllBackwardNextPage() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

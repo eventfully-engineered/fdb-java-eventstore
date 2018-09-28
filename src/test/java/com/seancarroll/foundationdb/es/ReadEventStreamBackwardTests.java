@@ -7,6 +7,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
@@ -55,7 +56,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamNotFound() {
+    public void shouldNotifyUsingStatusCodeWhenStreamNotFound() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -79,7 +80,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
 
 
     @Test
-    public void shouldReturnEmptySliceForNonExistingRange() {
+    public void shouldReturnEmptySliceForNonExistingRange() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -97,7 +98,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnPartialSliceWhenNotEnoughEventsInStream() {
+    public void shouldReturnPartialSliceWhenNotEnoughEventsInStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -115,7 +116,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnEventsInReverseOrderComparedToWritten() {
+    public void shouldReturnEventsInReverseOrderComparedToWritten() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -133,7 +134,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadSingleEventFromArbitraryPosition() {
+    public void shouldBeAbleToReadSingleEventFromArbitraryPosition() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -150,7 +151,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadSliceFromArbitraryPosition() {
+    public void shouldBeAbleToReadSliceFromArbitraryPosition() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -168,7 +169,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadFirstEvent() {
+    public void shouldBeAbleToReadFirstEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -185,7 +186,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadLastEvent() {
+    public void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -203,7 +204,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
 
 
     @Test
-    public void readStreamBackwards() {
+    public void readStreamBackwards() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -227,7 +228,7 @@ public class ReadEventStreamBackwardTests extends TestFixture {
 
     // TODO: improve test
     @Test
-    public void readStreamBackwardsNextPage() {
+    public void readStreamBackwardsNextPage() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

@@ -3,6 +3,8 @@ package com.seancarroll.foundationdb.es;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * This is from SqlStreamStore
  * EventStore has AllEventsSlice which contains ResolvedEvent[] events.
@@ -65,7 +67,8 @@ public class ReadAllPage {
      * Reads the next page
      * @return
      */
-    public ReadAllPage readNext() {
+    public ReadAllPage readNext() throws ExecutionException, InterruptedException {
+        // TODO: should this just return a ReadNextAllPage instead?
         return readNext.get(nextPosition);
     }
 

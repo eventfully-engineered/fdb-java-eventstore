@@ -6,6 +6,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +20,7 @@ public class AppendToStreamTests extends TestFixture {
     }
 
     @Test
-    public void conflict() {
+    public void conflict() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -45,7 +47,7 @@ public class AppendToStreamTests extends TestFixture {
     // should_fail_writing_with_correct_exp_ver_to_deleted_stream
     // should_return_log_position_when_writing
     @Test
-    public void shouldReturnPositionWithWriting() {
+    public void shouldReturnPositionWithWriting() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -65,7 +67,7 @@ public class AppendToStreamTests extends TestFixture {
     // should_append_with_correct_exp_ver_to_existing_stream
     // should_append_with_any_exp_ver_to_existing_stream
     @Test
-    public void shouldAppendWithAnyExpectedVersionToExistingStream() {
+    public void shouldAppendWithAnyExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
 //        const string stream = "should_append_with_any_exp_ver_to_existing_stream";
 //        using (var store = BuildConnection(_node))
 //        {
@@ -81,11 +83,8 @@ public class AppendToStreamTests extends TestFixture {
 
             // TODO: appendToStream with EmptyStream
             // TODO: appendToStream with Any
-            // NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            // AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            // assertEquals(4, appendResult.getCurrentVersion());
-            // TOOD: nextExpectedVersion?
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.EMPTY_STREAM, createNewStreamMessage()).getCurrentVersion());
+            assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
         }
     }
     // should_fail_appending_with_wrong_exp_ver_to_existing_stream
@@ -101,7 +100,7 @@ public class AppendToStreamTests extends TestFixture {
     // should_fail_appending_with_stream_exists_exp_ver_to_soft_deleted_stream
     // can_append_multiple_events_at_once
     @Test
-    public void canAppendMultipleEventsAtOnce() {
+    public void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

@@ -19,7 +19,7 @@ public interface EventStore {
      */
     AppendResult appendToStream(String streamId,
                                 long expectedVersion,
-                                NewStreamMessage[] messages);
+                                NewStreamMessage... messages) throws InterruptedException, ExecutionException;
 
     /**
      *
@@ -27,7 +27,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount);
+    ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException;
 
     /**
      *
@@ -35,7 +35,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount);
+    ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException;
 
     /**
      *
@@ -46,7 +46,7 @@ public interface EventStore {
      */
     ReadStreamPage readStreamForwards(String streamId,
                                       long fromVersionInclusive,
-                                      int maxCount);
+                                      int maxCount) throws InterruptedException, ExecutionException;
 
     /**
      *
@@ -57,7 +57,7 @@ public interface EventStore {
      */
     ReadStreamPage readStreamBackwards(String streamId,
                                        long fromVersionInclusive,
-                                       int maxCount);
+                                       int maxCount) throws InterruptedException, ExecutionException;
 
     /**
      * Reads the head position (the position of the very latest message).

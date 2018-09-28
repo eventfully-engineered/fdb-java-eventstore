@@ -6,6 +6,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,7 +49,7 @@ public class ReadEventTests extends TestFixture {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            assertThrows(IllegalArgumentException.class, () -> es.readEvent("test-stream", -1));
+            assertThrows(IllegalArgumentException.class, () -> es.readEvent("test-stream", -2));
         }
     }
 
@@ -87,7 +89,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() {
+    public void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -107,7 +109,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnExistingEvent() {
+    public void shouldReturnExistingEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -133,8 +135,20 @@ public class ReadEventTests extends TestFixture {
 
     // return_last_event_in_stream_if_event_number_is_minus_one
     @Test
-    public void shouldReturnLastEventInStreamIfEventNumberIsNegativeOne() {
+    public void shouldReturnLastEventInStreamIfEventNumberIsNegativeOne() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadEventResult read = es.readEvent(stream, -1);
+
+            TestHelpers.assertEventDataEqual(messages[4], read.getEvent());
+        }
     }
 
 }

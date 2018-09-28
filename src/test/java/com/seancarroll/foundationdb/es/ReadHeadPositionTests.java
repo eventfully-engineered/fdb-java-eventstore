@@ -6,6 +6,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutionException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ReadHeadPositionTests extends TestFixture {
@@ -17,7 +19,7 @@ public class ReadHeadPositionTests extends TestFixture {
     }
 
     @Test
-    public void readHeadPosition() {
+    public void readHeadPosition() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
