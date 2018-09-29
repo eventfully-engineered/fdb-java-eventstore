@@ -54,7 +54,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldNotifyUsingStatusCodeIfStreamNotFound() {
+    public void shouldNotifyUsingStatusCodeIfStreamNotFound() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -70,7 +70,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() {
+    public void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() throws ExecutionException, InterruptedException {
 
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
@@ -125,6 +125,7 @@ public class ReadEventTests extends TestFixture {
             // Assert.AreEqual(res.Event.Value.OriginalEvent.EventId, _eventId0);
             assertEquals("test-stream", read.getStream());
             assertEquals(2, read.getEventNumber());
+            TestHelpers.assertEventDataEqual(messages[2], read.getEvent());
             // Assert.AreNotEqual(DateTime.MinValue, res.Event.Value.OriginalEvent.Created);
             //Assert.AreNotEqual(0, res.Event.Value.OriginalEvent.CreatedEpoch);
 
