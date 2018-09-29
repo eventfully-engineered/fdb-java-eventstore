@@ -2,16 +2,15 @@ package com.seancarroll.foundationdb.es;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import java.util.UUID;
 
 public class NewStreamMessage {
 
-    // TODO: define an empty byte[]
-
     private final UUID messageId;
     private final String type;
-    // IsJson
+    // TODO: do we want to add an isJson field?
     private final byte[] data;
     private final byte[] metadata;
 
@@ -22,7 +21,7 @@ public class NewStreamMessage {
      * @param data
      */
     public NewStreamMessage(UUID messageId, String type, byte[] data) {
-        this(messageId, type, data, new byte[0]);
+        this(messageId, type, data, Empty.BYTE_ARRAY);
     }
 
     /**
@@ -33,11 +32,8 @@ public class NewStreamMessage {
      * @param metadata
      */
     public NewStreamMessage(UUID messageId, String type, byte[] data, byte[] metadata) {
-        // Ensure.notNull(messageId);
-        // Ensure.notNullOrEmpty(type, "type");
-        // Ensure.notNullOrEmpty(jsonData, "data");
         Preconditions.checkNotNull(messageId);
-        Preconditions.checkNotNull(type);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(type));
         Preconditions.checkNotNull(data);
 
         this.messageId = messageId;
@@ -45,7 +41,7 @@ public class NewStreamMessage {
         this.data = data;
         this.metadata = metadata == null ? Empty.BYTE_ARRAY : metadata;
 
-        // TODO: would like to be able to support large values. @see issue <insert number or link>
+        // TODO: would like to be able to support large values. @see issue https://github.com/seancarroll/fdb-java-es/issues/1
         int size = data == null ? 0 : data.length;
         size += metadata == null ? 0 : metadata.length;
         size += type.length() * 2;
