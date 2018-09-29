@@ -9,12 +9,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -33,7 +32,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // - Should you have clients pass in a transaction?
 // - Should clients pass in their on directory/subspace?
 // - How do we want to handle position in global vs stream subspace?
-// TODO: improve my exception handling code
 public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
@@ -105,7 +103,8 @@ public class EventStoreLayer implements EventStore {
 
                 // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
-                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, DateTime.now(DateTimeZone.UTC).getMillis());
+                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, Instant.now().toEpochMilli());
+
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
             }
@@ -145,7 +144,7 @@ public class EventStoreLayer implements EventStore {
 
                 // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
-                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, DateTime.now(DateTimeZone.UTC).getMillis());
+                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, Instant.now().toEpochMilli());
 
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
@@ -187,7 +186,7 @@ public class EventStoreLayer implements EventStore {
                 Versionstamp versionstamp = Versionstamp.incomplete(i);
 
                 // TODO: how should we store metadata
-                long createdDateUtcEpoch = DateTime.now(DateTimeZone.UTC).getMillis();
+                long createdDateUtcEpoch = Instant.now().toEpochMilli();
                 NewStreamMessage message = messages[i];
                 Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
                 Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
@@ -242,12 +241,6 @@ public class EventStoreLayer implements EventStore {
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
-
-            // TODO: look at the various streaming modes to determine best fit
-            // TODO: fix range query
-            // TODO: would need to change based on forward or backwards
-            // Ranges appear to be begin (inclusive) and end (exclusive) and not sure how we could have begin be exclusive
-            // TODO: we may need to do something different for begin and end when reverse
             return tr.getRange(
                 globalSubspace.pack(Tuple.from(fromPositionInclusive)),
                 globalSubspace.pack(Position.END),
@@ -277,7 +270,6 @@ public class EventStoreLayer implements EventStore {
             Tuple key = globalSubspace.unpack(kv.getKey());
             Tuple tupleValue = Tuple.fromBytes(kv.getValue());
 
-            // TODO: how to handle streamId, messageId, stream version, position, etc...
             StreamMessage message = new StreamMessage(
                 tupleValue.getString(1),
                 tupleValue.getUUID(0),
@@ -325,11 +317,6 @@ public class EventStoreLayer implements EventStore {
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
-
-            // TODO: look at the various streaming modes to determine best fit.
-            // TODO: fix range with paging
-            // TODO: we may need to do something different for begin and end when reverse
-            // TODO: this sucks bad....fix which I think means separate forward from backwards. Maybe try and share some logic
             return tr.getRange(
                 streamSubspace.pack(Tuple.from(fromVersionInclusive)),
                 streamSubspace.pack(Tuple.from(Long.MAX_VALUE)),
@@ -409,11 +396,6 @@ public class EventStoreLayer implements EventStore {
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
-
-            // TODO: look at the various streaming modes to determine best fit.
-            // TODO: fix range with paging
-            // TODO: we may need to do something different for begin and end when reverse
-            // TODO: this sucks bad....fix which I think means separate forward from backwards. Maybe try and share some logic
             return tr.getRange(
                 streamSubspace.pack(Tuple.from(fromVersionInclusive - maxCount)),
                 // TODO: adding one because end range is exclusive
@@ -506,45 +488,38 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadEventResult readEvent(String stream, long eventNumber) {
+    public ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(stream));
         Preconditions.checkArgument(eventNumber >= -1);
 
         HashCode streamHash = createHash(stream);
-        return database.read(tr -> {
+        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
 
-            try {
-                Subspace streamSubspace = getStreamSubspace(streamHash.toString());
-
+        byte[] valueBytes = database.read(tr -> {
                 byte[] key = Objects.equals(eventNumber, StreamPosition.END)
-                    ? tr.getKey(KeySelector.lastLessThan(streamSubspace.range().end)).get()
+                    ? tr.getKey(KeySelector.lastLessThan(streamSubspace.range().end)).join()
                     : streamSubspace.pack(Tuple.from(eventNumber));
 
-                byte[] bytes = tr.get(key).get();
-                if (bytes == null) {
-                    return new ReadEventResult(ReadEventStatus.NOT_FOUND, stream, eventNumber, null);
-                }
+                return tr.get(key);
+        }).get();
 
-                Tuple value = Tuple.fromBytes(bytes);
-                StreamMessage message = new StreamMessage(
-                    stream,
-                    value.getUUID(0),
-                    value.getLong(5),
-                    value.getVersionstamp(7),
-                    value.getLong(6),
-                    value.getString(2),
-                    value.getBytes(4),
-                    value.getBytes(3)
-                );
-                return new ReadEventResult(ReadEventStatus.SUCCESS, stream, eventNumber, message);
+        if (valueBytes == null) {
+            return new ReadEventResult(ReadEventStatus.NOT_FOUND, stream, eventNumber, null);
+        }
 
-            } catch (InterruptedException|ExecutionException e) {
-                // TODO: what do we actually want to do here
-                LOG.error("error reading head position", e);
-            }
+        Tuple value = Tuple.fromBytes(valueBytes);
+        StreamMessage message = new StreamMessage(
+            stream,
+            value.getUUID(0),
+            value.getLong(5),
+            value.getVersionstamp(7),
+            value.getLong(6),
+            value.getString(2),
+            value.getBytes(4),
+            value.getBytes(3)
+        );
+        return new ReadEventResult(ReadEventStatus.SUCCESS, stream, eventNumber, message);
 
-            return null;
-        });
     }
 
     private static HashCode createHash(String streamId) {
@@ -561,8 +536,8 @@ public class EventStoreLayer implements EventStore {
 
 //    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
 //    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
-//        AsyncIterator<KeyValue> iterator = tr.getRange(logSubspace.range(), /* reverse = */ true, /* limit = */ 1).iterator();
-//        return iterator.onHasNext(hasAny -> {
+//        AsyncIterator<KeyValue> iterator = tr.getRange(esSubspace.range(), /* limit = */ 1, /* reverse = */ true).iterator();
+//        return iterator.onHasNext().thenApply(hasAny -> {
 //            if (hasAny) {
 //                // Get the last element from the log subspace and parse out the versionstamp
 //                KeyValue kv = iterator.next();
@@ -588,4 +563,5 @@ public class EventStoreLayer implements EventStore {
 //                .array())
 //        );
 //    }
+
 }

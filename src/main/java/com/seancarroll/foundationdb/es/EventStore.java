@@ -90,5 +90,5 @@ public interface EventStore {
 
     void deleteMessage(String streamId, UUID messageId);
 
-    ReadEventResult readEvent(String stream, long eventNumber);
+    ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException;
 }
