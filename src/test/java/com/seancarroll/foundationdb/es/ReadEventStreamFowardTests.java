@@ -125,7 +125,7 @@ public class ReadEventStreamFowardTests extends TestFixture {
             es.appendToStream(stream, ExpectedVersion.ANY, messages);
 
             ReadStreamPage read = es.readStreamForwards(stream, 0, messages.length);
-
+            
             assertEventDataEqual(messages, read.getMessages());
         }
     }

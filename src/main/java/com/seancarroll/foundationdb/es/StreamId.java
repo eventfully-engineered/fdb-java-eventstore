@@ -11,7 +11,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 // TODO: I dont really like the name
 public class StreamId {
 
-    private final String id;
+    private final String originalId;
     private final String hash;
 
     public StreamId(String id) {
@@ -19,7 +19,7 @@ public class StreamId {
         if (StringUtils.containsWhitespace(id)) {
             throw new IllegalArgumentException("value must not contain whitespace");
         }
-        this.id = id;
+        this.originalId = id;
 
         // new String(Hashing.murmur3_128().hashString(originalId, StandardCharsets.UTF_8).asBytes(), StandardCharsets.UTF_8)
         this.hash = Hashing.murmur3_128().hashString(id, UTF_8).toString();
@@ -29,8 +29,8 @@ public class StreamId {
      * Original id provided by the caller
      * @return
      */
-    public String getId() {
-        return id;
+    public String getOriginalId() {
+        return originalId;
     }
 
     /**
@@ -43,7 +43,7 @@ public class StreamId {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, hash);
+        return Objects.hash(originalId, hash);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class StreamId {
         if (getClass() != obj.getClass())
             return false;
         StreamId other = (StreamId) obj;
-        return id.equals(other.id) && hash.equals(other.hash);
+        return originalId.equals(other.originalId) && hash.equals(other.hash);
     }
 
 

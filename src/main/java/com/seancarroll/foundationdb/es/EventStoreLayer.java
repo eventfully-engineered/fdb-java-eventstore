@@ -64,33 +64,32 @@ public class EventStoreLayer implements EventStore {
     private AppendResult appendToStreamInternal(String streamId, long expectedVersion, NewStreamMessage[] messages) throws InterruptedException, ExecutionException {
         Preconditions.checkNotNull(streamId);
 
+        StreamId stream = new StreamId(streamId);
+
         // TODO: is this how we want to handle this?
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
         }
 
         if (expectedVersion == ExpectedVersion.ANY) {
-            return appendToStreamExpectedVersionAny(streamId, messages);
+            return appendToStreamExpectedVersionAny(stream, messages);
         }
         if (expectedVersion == ExpectedVersion.NO_STREAM) {
-            return appendToStreamExpectedVersionNoStream(streamId, messages);
+            return appendToStreamExpectedVersionNoStream(stream, messages);
         }
-        return appendToStreamExpectedVersion(streamId, expectedVersion, messages);
+        return appendToStreamExpectedVersion(stream, expectedVersion, messages);
     }
 
     // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
-    private AppendResult appendToStreamExpectedVersionAny(String streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
-        // TODO: hashing multiple times...once here and once in readStreamBackwards
-        HashCode streamHash = createHash(streamId);
-
-        ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+    private AppendResult appendToStreamExpectedVersionAny(StreamId streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
+        ReadStreamPage backwardPage = readStreamBackwardsInternal(streamId, 0, 1);
         long currentStreamVersion = backwardPage.getMessages().length == 0
             ? StreamVersion.END
             : backwardPage.getNextStreamVersion();
 
         Subspace globalSubspace = getGlobalSubspace();
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(streamId);
 
         AtomicLong latestStreamVersion = new AtomicLong(currentStreamVersion);
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
@@ -103,10 +102,12 @@ public class EventStoreLayer implements EventStore {
 
                 // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
-                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, Instant.now().toEpochMilli());
 
-                tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
-                tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                long createdDateUtcEpoch = Instant.now().toEpochMilli();
+                Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
+                Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
+                tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
             }
 
             return tr.getVersionstamp();
@@ -119,11 +120,8 @@ public class EventStoreLayer implements EventStore {
 
     // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
-    private AppendResult appendToStreamExpectedVersionNoStream(String streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
-        // TODO: hashing multiple times...once here and once in readStreamBackwards
-        HashCode streamHash = createHash(streamId);
-
-        ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+    private AppendResult appendToStreamExpectedVersionNoStream(StreamId streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
+        ReadStreamPage backwardPage = readStreamBackwardsInternal(streamId, 0, 1);
 
         if (PageReadStatus.STREAM_NOT_FOUND != backwardPage.getStatus()) {
             // ErrorMessages.AppendFailedWrongExpectedVersion
@@ -132,7 +130,7 @@ public class EventStoreLayer implements EventStore {
         }
 
         Subspace globalSubspace = getGlobalSubspace();
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(streamId);
 
         // TODO: is StreamVersion.END right?
         AtomicLong latestStreamVersion = new AtomicLong(StreamVersion.END);
@@ -144,10 +142,11 @@ public class EventStoreLayer implements EventStore {
 
                 // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
-                Tuple tv = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, Instant.now().toEpochMilli());
-
-                tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), tv.pack());
-                tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), tv.add(versionstamp).packWithVersionstamp());
+                long createdDateUtcEpoch = Instant.now().toEpochMilli();
+                Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
+                Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
+                tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
             }
 
             return tr.getVersionstamp();
@@ -160,11 +159,8 @@ public class EventStoreLayer implements EventStore {
 
     // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
-    private AppendResult appendToStreamExpectedVersion(String streamId, long expectedVersion, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
-        // TODO: hashing multiple times...once here and once in readStreamBackwards
-        HashCode streamHash = createHash(streamId);
-
-        ReadStreamPage backwardPage = readStreamBackwards(streamId, 0, 1);
+    private AppendResult appendToStreamExpectedVersion(StreamId streamId, long expectedVersion, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
+        ReadStreamPage backwardPage = readStreamBackwardsInternal(streamId, 0, 1);
 
         long currentStreamVersion = backwardPage.getMessages().length == 0
             ? StreamVersion.END
@@ -175,7 +171,7 @@ public class EventStoreLayer implements EventStore {
         }
 
         Subspace globalSubspace = getGlobalSubspace();
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(streamId);
 
         AtomicLong latestStreamVersion = new AtomicLong(currentStreamVersion);
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
@@ -188,8 +184,8 @@ public class EventStoreLayer implements EventStore {
                 // TODO: how should we store metadata
                 long createdDateUtcEpoch = Instant.now().toEpochMilli();
                 NewStreamMessage message = messages[i];
-                Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
-                Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId, message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
+                Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
             }
@@ -305,14 +301,16 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public ReadStreamPage readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
+        return readStreamForwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
+    }
+
+    private ReadStreamPage readStreamForwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
         Preconditions.checkNotNull(streamId);
         Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        HashCode streamHash = createHash(streamId);
-
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(streamId);
 
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
@@ -325,12 +323,12 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwards(streamId, nextPosition, maxCount);
+        ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwardsInternal(streamId, nextPosition, maxCount);
 
         List<KeyValue> kvs = r.get();
         if (kvs.isEmpty()) {
             return new ReadStreamPage(
-                streamId,
+                streamId.getOriginalId(),
                 PageReadStatus.STREAM_NOT_FOUND,
                 fromVersionInclusive,
                 StreamVersion.END,
@@ -349,7 +347,7 @@ public class EventStoreLayer implements EventStore {
             Tuple key = streamSubspace.unpack(kv.getKey());
             Tuple tupleValue = Tuple.fromBytes(kv.getValue());
             StreamMessage message = new StreamMessage(
-                streamId,
+                streamId.getOriginalId(),
                 tupleValue.getUUID(0),
                 tupleValue.getLong(5),
                 tupleValue.getVersionstamp(7),
@@ -370,7 +368,7 @@ public class EventStoreLayer implements EventStore {
         }
 
         return new ReadStreamPage(
-            streamId,
+            streamId.getOriginalId(),
             PageReadStatus.SUCCESS,
             fromVersionInclusive,
             nextPosition,
@@ -384,14 +382,16 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public ReadStreamPage readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
+        return readStreamBackwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
+    }
+
+    private ReadStreamPage readStreamBackwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
         Preconditions.checkNotNull(streamId);
         Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        HashCode streamHash = createHash(streamId);
-
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(streamId);
 
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
@@ -405,12 +405,12 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwards(streamId, nextPosition, maxCount);
+        ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwardsInternal(streamId, nextPosition, maxCount);
 
         List<KeyValue> kvs = r.get();
         if (kvs.isEmpty()) {
             return new ReadStreamPage(
-                streamId,
+                streamId.getOriginalId(),
                 PageReadStatus.STREAM_NOT_FOUND,
                 fromVersionInclusive,
                 StreamVersion.END,
@@ -429,7 +429,7 @@ public class EventStoreLayer implements EventStore {
             Tuple key = streamSubspace.unpack(kv.getKey());
             Tuple tupleValue = Tuple.fromBytes(kv.getValue());
             StreamMessage message = new StreamMessage(
-                streamId,
+                streamId.getOriginalId(),
                 tupleValue.getUUID(0),
                 tupleValue.getLong(5),
                 tupleValue.getVersionstamp(7),
@@ -450,7 +450,7 @@ public class EventStoreLayer implements EventStore {
         }
 
         return new ReadStreamPage(
-            streamId,
+            streamId.getOriginalId(),
             PageReadStatus.SUCCESS,
             fromVersionInclusive,
             nextPosition,
@@ -493,7 +493,7 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(eventNumber >= -1);
 
         HashCode streamHash = createHash(stream);
-        Subspace streamSubspace = getStreamSubspace(streamHash.toString());
+        Subspace streamSubspace = getStreamSubspace(new StreamId(stream));
 
         byte[] valueBytes = database.read(tr -> {
                 byte[] key = Objects.equals(eventNumber, StreamPosition.END)
@@ -530,8 +530,8 @@ public class EventStoreLayer implements EventStore {
         return esSubspace.subspace(Tuple.from(EventStoreSubspaces.GLOBAL.getValue()));
     }
 
-    private Subspace getStreamSubspace(String streamHash) {
-        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamHash));
+    private Subspace getStreamSubspace(StreamId streamId) {
+        return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
     }
 
 //    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
@@ -553,7 +553,6 @@ public class EventStoreLayer implements EventStore {
 //    This makes use of the fact that the first 8 bytes of a versionstamp are the commit version of the data associated with a record.
 //    Therefore, if you know the read version of the transaction, you also know that all data in your log subspace at version v will be prefixed by a version less than or equal to v and all future data added later will be prefixed with a version greater than v.
 //    So you can do something like:
-
 //    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
 //        return tr.getReadVersion().thenApply(readVersion ->
 //            Versionstamp.fromBytes(ByteBuffer.allocate(Versionstamp.LENGTH)
