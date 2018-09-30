@@ -7,8 +7,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +18,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 
 // TODO: use Long.parseUnsignedLong
@@ -492,7 +488,6 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(stream));
         Preconditions.checkArgument(eventNumber >= -1);
 
-        HashCode streamHash = createHash(stream);
         Subspace streamSubspace = getStreamSubspace(new StreamId(stream));
 
         byte[] valueBytes = database.read(tr -> {
@@ -520,10 +515,6 @@ public class EventStoreLayer implements EventStore {
         );
         return new ReadEventResult(ReadEventStatus.SUCCESS, stream, eventNumber, message);
 
-    }
-
-    private static HashCode createHash(String streamId) {
-        return Hashing.murmur3_128().hashString(streamId, UTF_8);
     }
 
     private Subspace getGlobalSubspace() {
