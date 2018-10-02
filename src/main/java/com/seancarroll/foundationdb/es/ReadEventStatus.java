@@ -13,11 +13,6 @@ public enum ReadEventStatus {
     NOT_FOUND,
 
     /**
-     * The stream was not found
-     */
-    NO_STREAM,
-
-    /**
      * The stream previously existed but was deleted
      */
     STREAM_DELETED

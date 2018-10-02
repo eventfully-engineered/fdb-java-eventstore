@@ -53,6 +53,7 @@ public class ReadEventTests extends TestFixture {
         }
     }
 
+    // TODO: check tests especially the next two below
     @Test
     public void shouldNotifyUsingStatusCodeIfStreamNotFound() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -62,7 +63,7 @@ public class ReadEventTests extends TestFixture {
 
             ReadEventResult read = es.readEvent("test-stream", 1);
 
-            assertEquals(ReadEventStatus.NO_STREAM, read.getStatus());
+            assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
             assertNull(read.getEvent());
             assertEquals("test-stream", read.getStream());
             assertEquals(1, read.getEventNumber());
@@ -79,7 +80,7 @@ public class ReadEventTests extends TestFixture {
 
             ReadEventResult read = es.readEvent("test-stream", 1);
 
-            assertEquals(ReadEventStatus.NO_STREAM, read.getStatus());
+            assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
         }
     }
 
@@ -152,4 +153,6 @@ public class ReadEventTests extends TestFixture {
         }
     }
 
+    // TODO: add test where we append to one stream try and get end of another stream and verify we get a not found
+    // shouldnt read from the other stream
 }
