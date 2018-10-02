@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class AppendToStreamTests extends TestFixture {
 
@@ -27,11 +27,11 @@ public class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.EMPTY_STREAM, messages);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
             assertNotNull(appendResult.getCurrentPosition());
             assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
 
-            AppendResult append2 = es.appendToStream("test-stream", ExpectedVersion.EMPTY_STREAM, createNewStreamMessages(7));
+            AppendResult append2 = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessages(7));
 
 
         }
@@ -83,7 +83,7 @@ public class AppendToStreamTests extends TestFixture {
 
             // TODO: appendToStream with EmptyStream
             // TODO: appendToStream with Any
-            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.EMPTY_STREAM, createNewStreamMessage()).getCurrentVersion());
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
             assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
         }
     }

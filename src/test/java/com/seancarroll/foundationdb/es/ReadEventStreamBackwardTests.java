@@ -8,11 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ReadEventStreamBackwardTests extends TestFixture {
 
@@ -179,9 +177,9 @@ public class ReadEventStreamBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages);
 
-            ReadEventResult read = es.readEvent(stream, StreamPosition.START);
+            ReadStreamPage read = es.readStreamBackwards(stream, StreamPosition.START, 1);
 
-            TestHelpers.assertEventDataEqual(messages[0], read.getEvent());
+            TestHelpers.assertEventDataEqual(messages[0], read.getMessages()[0]);
         }
     }
 
@@ -196,9 +194,9 @@ public class ReadEventStreamBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages);
 
-            ReadEventResult read = es.readEvent(stream, StreamPosition.END);
+            ReadStreamPage read = es.readStreamBackwards(stream, StreamPosition.END, 1);
 
-            TestHelpers.assertEventDataEqual(messages[4], read.getEvent());
+            TestHelpers.assertEventDataEqual(messages[4], read.getMessages()[0]);
         }
     }
 
