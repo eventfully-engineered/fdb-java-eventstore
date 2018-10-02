@@ -189,4 +189,21 @@ public class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
+    @Test
+    public void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+
+            ReadStreamPage read = es.readStreamForwards(stream, StreamPosition.END, 1);
+
+            TestHelpers.assertEventDataEqual(messages[4], read.getMessages()[0]);
+        }
+    }
+
 }
