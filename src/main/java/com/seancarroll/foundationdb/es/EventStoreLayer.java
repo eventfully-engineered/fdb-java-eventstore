@@ -117,7 +117,7 @@ public class EventStoreLayer implements EventStore {
         if (PageReadStatus.STREAM_NOT_FOUND != backwardPage.getStatus()) {
             // ErrorMessages.AppendFailedWrongExpectedVersion
             // $"Append failed due to WrongExpectedVersion.Stream: {streamId}, Expected version: {expectedVersion}"
-            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId, StreamVersion.NONE));
+            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId.getOriginalId(), StreamVersion.NONE));
         }
 
         Subspace globalSubspace = getGlobalSubspace();
@@ -153,7 +153,7 @@ public class EventStoreLayer implements EventStore {
             : backwardPage.getNextStreamVersion();
 
         if (!Objects.equals(expectedVersion, currentStreamVersion)) {
-            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, currentStreamVersion));
+            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId.getOriginalId(), expectedVersion, currentStreamVersion));
         }
 
         Subspace globalSubspace = getGlobalSubspace();
