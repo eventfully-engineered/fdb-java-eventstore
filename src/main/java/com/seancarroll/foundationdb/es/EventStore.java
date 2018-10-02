@@ -59,11 +59,15 @@ public interface EventStore {
                                        long fromVersionInclusive,
                                        int maxCount) throws InterruptedException, ExecutionException;
 
+
+    ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException;
+
     /**
-     * Reads the head position (the position of the very latest message).
+     * TODO: Do we need this? Does readAllBackwards with Position.END handle this well enough?
+     * Reads the head position (the position of the very latest message) in the {@link EventStoreSubspaces#GLOBAL} subspace.
      * @return the head position
      */
-    Long readHeadPosition() throws ExecutionException, InterruptedException;
+    Versionstamp readHeadPosition() throws ExecutionException, InterruptedException;
 
     /**
      *
@@ -89,6 +93,4 @@ public interface EventStore {
     void deleteStream(String streamId, long expectedVersion);
 
     void deleteMessage(String streamId, UUID messageId);
-
-    ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException;
 }

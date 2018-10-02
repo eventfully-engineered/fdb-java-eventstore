@@ -459,13 +459,13 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public Long readHeadPosition() throws ExecutionException, InterruptedException {
+    public Versionstamp readHeadPosition() throws ExecutionException, InterruptedException {
         Subspace globalSubspace = getGlobalSubspace();
 
         byte[] k = database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end))).get();
 
         if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
-            return 0L;
+            return null;
         }
 
         Tuple t = globalSubspace.unpack(k);
@@ -475,7 +475,7 @@ public class EventStoreLayer implements EventStore {
             throw new RuntimeException("failed to unpack key");
         }
 
-        return t.getLong(0);
+        return t.getVersionstamp(0);
     }
 
     @Override
@@ -491,11 +491,11 @@ public class EventStoreLayer implements EventStore {
         Subspace streamSubspace = getStreamSubspace(new StreamId(stream));
 
         byte[] valueBytes = database.read(tr -> {
-                byte[] key = Objects.equals(eventNumber, StreamPosition.END)
-                    ? tr.getKey(KeySelector.lastLessThan(streamSubspace.range().end)).join()
-                    : streamSubspace.pack(Tuple.from(eventNumber));
+            byte[] key = Objects.equals(eventNumber, StreamPosition.END)
+                ? tr.getKey(KeySelector.lastLessThan(streamSubspace.range().end)).join()
+                : streamSubspace.pack(Tuple.from(eventNumber));
 
-                return tr.get(key);
+            return tr.get(key);
         }).get();
 
         if (valueBytes == null) {
@@ -524,34 +524,5 @@ public class EventStoreLayer implements EventStore {
     private Subspace getStreamSubspace(StreamId streamId) {
         return esSubspace.subspace(Tuple.from(EventStoreSubspaces.STREAM.getValue(), streamId.getHash()));
     }
-
-//    https://forums.foundationdb.org/t/get-current-versionstamp/586/3
-//    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
-//        AsyncIterator<KeyValue> iterator = tr.getRange(esSubspace.range(), /* limit = */ 1, /* reverse = */ true).iterator();
-//        return iterator.onHasNext().thenApply(hasAny -> {
-//            if (hasAny) {
-//                // Get the last element from the log subspace and parse out the versionstamp
-//                KeyValue kv = iterator.next();
-//                return Tuple.fromBytes(kv.getKey()).getVersionstamp(0);
-//            } else {
-//                // Log subspace is empty
-//                return null; // or a versionstamp of all zeroes if you prefer
-//            }
-//        });
-//    }
-
-//    Construct a versionstamp from your transaction's read version
-//    This makes use of the fact that the first 8 bytes of a versionstamp are the commit version of the data associated with a record.
-//    Therefore, if you know the read version of the transaction, you also know that all data in your log subspace at version v will be prefixed by a version less than or equal to v and all future data added later will be prefixed with a version greater than v.
-//    So you can do something like:
-//    public CompletableFuture<Versionstamp> getCurVersionStamp(ReadTransaction tr) {
-//        return tr.getReadVersion().thenApply(readVersion ->
-//            Versionstamp.fromBytes(ByteBuffer.allocate(Versionstamp.LENGTH)
-//                .order(ByteOrder.BIG_ENDIAN)
-//                .putLong(readVersion)
-//                .putInt(0xffffffff)
-//                .array())
-//        );
-//    }
 
 }
