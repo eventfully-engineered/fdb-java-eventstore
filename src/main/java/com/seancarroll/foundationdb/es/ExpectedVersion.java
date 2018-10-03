@@ -17,13 +17,6 @@ public final class ExpectedVersion {
      */
     public static final int ANY = -2;
 
-    /**
-     * The stream should exist.
-     * If it or a metadata stream does not exist treat that as a concurrency problem.
-     */
-    public static final int STREAM_EXISTS = -4;
-
-
     private ExpectedVersion() {
         // static constants only
     }
