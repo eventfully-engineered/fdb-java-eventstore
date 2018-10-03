@@ -147,19 +147,17 @@ public class EventStoreLayer implements EventStore {
     // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
     private AppendResult appendToStreamExpectedVersion(StreamId streamId, long expectedVersion, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
-        ReadStreamPage backwardPage = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
-        long currentStreamVersion = backwardPage.getMessages().length == 0
-            ? StreamVersion.END
-            : backwardPage.getNextStreamVersion();
+        ReadEventResult readEventResult = readEventInternal(streamId, StreamPosition.END);
+        // TODO: do we need to do any version/event number checking?
 
-        if (!Objects.equals(expectedVersion, currentStreamVersion)) {
-            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId.getOriginalId(), expectedVersion, currentStreamVersion));
+        if (!Objects.equals(expectedVersion, readEventResult.getEventNumber())) {
+            throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId.getOriginalId(), expectedVersion, readEventResult.getEventNumber()));
         }
 
         Subspace globalSubspace = getGlobalSubspace();
         Subspace streamSubspace = getStreamSubspace(streamId);
 
-        AtomicLong latestStreamVersion = new AtomicLong(currentStreamVersion);
+        AtomicLong latestStreamVersion = new AtomicLong(readEventResult.getEventNumber());
         CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
 
             for (int i = 0; i < messages.length; i++) {
