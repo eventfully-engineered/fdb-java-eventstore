@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AppendToStreamTests extends TestFixture {
 
@@ -19,32 +18,57 @@ public class AppendToStreamTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
+    // should_allow_appending_zero_events_to_stream_with_no_problems
     @Test
-    public void conflict() throws ExecutionException, InterruptedException {
+    public void shouldNotAllowAppendingZeroEventsToStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
-            assertNotNull(appendResult.getCurrentPosition());
-            assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
-
-            AppendResult append2 = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessages(7));
-
-
+            // TODO: verify message: messages must not be null or empty
+            assertThrows(IllegalArgumentException.class, () -> es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, new NewStreamMessage[0]));
         }
     }
 
-    // should_allow_appending_zero_events_to_stream_with_no_problems
     // should_create_stream_with_no_stream_exp_ver_on_first_write_if_does_not_exist
+    @Test
+    public void shouldAppendWithNoStreamExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
+
+            ReadStreamPage read = es.readStreamForwards(stream, 0, 2);
+            assertEquals(1, read.getMessages().length);
+        }
+    }
+
     // should_create_stream_with_any_exp_ver_on_first_write_if_does_not_exist
+    @Test
+    public void shouldAppendWithAnyExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            String stream = "test-stream";
+            assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
+
+            ReadStreamPage read = es.readStreamForwards(stream, 0, 2);
+            assertEquals(1, read.getMessages().length);
+        }
+    }
+
     // multiple_idempotent_writes
     // multiple_idempotent_writes_with_same_id_bug_case
     // in_wtf_multiple_case_of_multiple_writes_expected_version_any_per_all_same_id
     // in_slightly_reasonable_multiple_case_of_multiple_writes_with_expected_version_per_all_same_id
     // should_fail_writing_with_correct_exp_ver_to_deleted_stream
+
     // should_return_log_position_when_writing
     @Test
     public void shouldReturnPositionWithWriting() throws ExecutionException, InterruptedException {
@@ -54,7 +78,6 @@ public class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            // TODO: ExpectedVersion.EMPTY_STREAM doesnt work
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
 
             assertNotNull(appendResult.getCurrentPosition());
@@ -65,33 +88,47 @@ public class AppendToStreamTests extends TestFixture {
     // should_fail_writing_with_any_exp_ver_to_deleted_stream
     // should_fail_writing_with_invalid_exp_ver_to_deleted_stream
     // should_append_with_correct_exp_ver_to_existing_stream
-    // should_append_with_any_exp_ver_to_existing_stream
     @Test
-    public void shouldAppendWithAnyExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
-//        const string stream = "should_append_with_any_exp_ver_to_existing_stream";
-//        using (var store = BuildConnection(_node))
-//        {
-//            store.ConnectAsync().Wait();
-//            Assert.AreEqual(0, store.AppendToStreamAsync(stream, ExpectedVersion.EmptyStream, TestEvent.NewTestEvent()).Result.NextExpectedVersion);
-//            Assert.AreEqual(1, store.AppendToStreamAsync(stream, ExpectedVersion.Any, TestEvent.NewTestEvent()).Result.NextExpectedVersion);
-//        }
-
+    public void shouldAppendWithCorrectExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            // TODO: appendToStream with EmptyStream
-            // TODO: appendToStream with Any
+            NewStreamMessage[] messages = createNewStreamMessages(1);
+
+            String stream = "test-stream";
+            es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage());
+            assertDoesNotThrow(() -> es.appendToStream(stream, 0, createNewStreamMessage()));
+        }
+    }
+
+    // should_append_with_any_exp_ver_to_existing_stream
+    @Test
+    public void shouldAppendWithAnyExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
             assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
         }
     }
+
     // should_fail_appending_with_wrong_exp_ver_to_existing_stream
     @Test
-    public void shouldFailAppendingWithWrongExpectedVersionToExistingStream() {
+    public void shouldFailAppendingWithWrongExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
+            assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
+        }
     }
+
     // should_append_with_stream_exists_exp_ver_to_existing_stream
     // should_append_with_stream_exists_exp_ver_to_stream_with_multiple_events
     // should_append_with_stream_exists_exp_ver_if_metadata_stream_exists
@@ -117,4 +154,22 @@ public class AppendToStreamTests extends TestFixture {
     // returns_success_status_when_conditionally_appending_with_matching_version
     // returns_failure_status_when_conditionally_appending_to_a_deleted_stream
 
+
+    @Test
+    public void conflict() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
+            assertNotNull(appendResult.getCurrentPosition());
+            assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
+
+            AppendResult append2 = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessages(7));
+
+
+        }
+    }
 }

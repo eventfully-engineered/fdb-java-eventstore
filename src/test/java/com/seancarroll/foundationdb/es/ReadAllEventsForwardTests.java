@@ -18,7 +18,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
-
     @Test
     public void readAllForwardTest() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -27,15 +26,13 @@ public class ReadAllEventsForwardTests extends TestFixture {
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
-            assertNotNull(forwardPage);
-            assertEquals(1, forwardPage.getMessages().length);
-            assertFalse(forwardPage.isEnd());
-            assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
-            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
+            ReadAllPage read = es.readAllForwards(Position.START, 1);
+
+            assertEquals(1, read.getMessages().length);
+            assertFalse(read.isEnd());
+            TestHelpers.assertEventDataEqual(messages[0], read.getMessages()[0]);
         }
     }
 
@@ -50,12 +47,11 @@ public class ReadAllEventsForwardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllForwards(Position.START, 4);
-            assertNotNull(forwardPage);
-            assertEquals(4, forwardPage.getMessages().length);
-            assertTrue(forwardPage.isEnd());
-            assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+            ReadAllPage read = es.readAllForwards(Position.START, 4);
+
+            assertEquals(4, read.getMessages().length);
+            assertTrue(read.isEnd());
+            TestHelpers.assertEventDataEqual(messages, read.getMessages());
         }
     }
 
@@ -67,10 +63,11 @@ public class ReadAllEventsForwardTests extends TestFixture {
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             // TODO: improve test
             ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
+
             assertNotNull(forwardPage);
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
 

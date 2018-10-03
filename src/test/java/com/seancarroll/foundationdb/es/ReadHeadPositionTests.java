@@ -20,6 +20,7 @@ public class ReadHeadPositionTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
+    // TOOD: any more tests scenarios?
 
     @Test
     public void shouldReturnNullWhenNoMessagesAppended() throws ExecutionException, InterruptedException {
@@ -49,6 +50,5 @@ public class ReadHeadPositionTests extends TestFixture {
             assertEquals(-1, Position.START.compareTo(headPosition));
         }
     }
-
 
 }

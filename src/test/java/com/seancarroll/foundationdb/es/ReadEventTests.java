@@ -72,7 +72,6 @@ public class ReadEventTests extends TestFixture {
 
     @Test
     public void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() throws ExecutionException, InterruptedException {
-
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
