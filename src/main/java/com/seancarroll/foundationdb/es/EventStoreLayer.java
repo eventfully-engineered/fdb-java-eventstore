@@ -204,15 +204,15 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException {
-        return readAllInternal(fromPositionInclusive, maxCount, false);
+        return readAllForwardInternal(fromPositionInclusive, maxCount, false);
     }
 
     @Override
     public ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException {
-        return readAllInternal(fromPositionInclusive, maxCount, true);
+        return readAllBackwardInternal(fromPositionInclusive, maxCount, true);
     }
 
-    private ReadAllPage readAllInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) throws ExecutionException, InterruptedException {
+    private ReadAllPage readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) throws ExecutionException, InterruptedException {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
@@ -221,11 +221,18 @@ public class EventStoreLayer implements EventStore {
         CompletableFuture<List<KeyValue>> r = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
+
+            // not sure how icky this is but it works
+            // assuming we want to support reading the end of the stream via readStreamForward with StreamPosition.END
+            KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
+                ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
+                : KeySelector.firstGreaterOrEqual(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+
             return tr.getRange(
-                globalSubspace.pack(Tuple.from(fromPositionInclusive)),
-                globalSubspace.pack(Position.END),
+                begin,
+                KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
                 rangeCount,
-                reverse,
+                false,
                 StreamingMode.WANT_ALL).asList();
         });
 
@@ -265,7 +272,84 @@ public class EventStoreLayer implements EventStore {
 
         // if we are at the end return next position as null otherwise
         // grab it from the last item from the range query which is outside the slice we want
-        // TODO: fix this.
+        // TODO: Review / fix this.
+        final Versionstamp nextPosition;
+        if (maxCount >= kvs.size()) {
+            nextPosition = null;
+        } else {
+            Tuple nextPositionKey = globalSubspace.unpack(kvs.get(maxCount).getKey());
+            nextPosition = nextPositionKey.getVersionstamp(0);
+        }
+
+        return new ReadAllPage(
+            fromPositionInclusive,
+            nextPosition,
+            maxCount >= kvs.size(),
+            direction,
+            readNext,
+            messages);
+    }
+
+    private ReadAllPage readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) throws ExecutionException, InterruptedException {
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
+        Subspace globalSubspace = getGlobalSubspace();
+
+        List<KeyValue> kvs = database.read(tr -> {
+            // add one so we can determine if we are at the end of the stream
+            int rangeCount = maxCount + 1;
+
+            // TODO: need to handle Position.START
+            // end is exclusive so we need to find first key greater than the end so that we include the end event
+            KeySelector end = Objects.equals(fromPositionInclusive, Position.END)
+                ? KeySelector.firstGreaterThan(globalSubspace.range().end)
+                : KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+
+            return tr.getRange(
+                KeySelector.firstGreaterOrEqual(globalSubspace.range().begin),
+                end,
+                rangeCount,
+                true,
+                StreamingMode.WANT_ALL).asList();
+        }).get();
+
+        ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
+        ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwards(nextPosition, maxCount);
+
+        if (kvs.isEmpty()) {
+            return new ReadAllPage(
+                fromPositionInclusive,
+                fromPositionInclusive,
+                true,
+                direction,
+                readNext,
+                Empty.STREAM_MESSAGES);
+        }
+
+        int limit = Math.min(maxCount, kvs.size());
+        StreamMessage[] messages = new StreamMessage[limit];
+        for (int i = 0; i < limit; i++) {
+            KeyValue kv = kvs.get(i);
+            Tuple key = globalSubspace.unpack(kv.getKey());
+            Tuple tupleValue = Tuple.fromBytes(kv.getValue());
+
+            StreamMessage message = new StreamMessage(
+                tupleValue.getString(1),
+                tupleValue.getUUID(0),
+                tupleValue.getLong(5),
+                key.getVersionstamp(0),
+                tupleValue.getLong(6),
+                tupleValue.getString(2),
+                tupleValue.getBytes(4),
+                tupleValue.getBytes(3)
+            );
+            messages[i] = message;
+        }
+
+        // if we are at the end return next position as null otherwise
+        // grab it from the last item from the range query which is outside the slice we want
+        // TODO: Review / fix this.
         final Versionstamp nextPosition;
         if (maxCount >= kvs.size()) {
             nextPosition = null;
@@ -428,7 +512,7 @@ public class EventStoreLayer implements EventStore {
             messages[i] = message;
         }
 
-        // TODO: review this
+        // TODO: review this. What should next position be if at end and when not at end?
         Tuple nextPositionValue = Tuple.fromBytes(kvs.get(limit - 1).getValue());
         long nextPosition = nextPositionValue.getLong(5) - 1;
 

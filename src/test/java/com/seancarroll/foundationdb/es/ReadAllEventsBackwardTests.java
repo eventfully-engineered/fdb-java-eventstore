@@ -3,9 +3,15 @@ package com.seancarroll.foundationdb.es;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.collect.ObjectArrays;
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,8 +24,9 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
+    // return_empty_slice_if_asked_to_read_from_start
     @Test
-    public void readAllBackwardsTest() throws ExecutionException, InterruptedException {
+    public void shouldReturnEmptyPageWhenAskedToReadFromStart() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -28,21 +35,139 @@ public class ReadAllEventsBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            // TODO: using Position.START here feels strange. EventStore uses Position.END which I think is more logical
-            // However, based on documentation range should always be start, end, reverse where start and end are the same regardless of reverse
-            ReadAllPage backwardPage = es.readAllBackwards(Position.START, 1);
+            ReadAllPage read = es.readAllBackwards(Position.START, 1);
 
-            assertNotNull(backwardPage);
-            assertEquals(1, backwardPage.getMessages().length);
-            assertFalse(backwardPage.isEnd());
-            assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
-            assertEquals("type", backwardPage.getMessages()[0].getType());
-            assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
+            assertTrue(read.isEnd());
+            assertEquals(0, read.getMessages().length);
+        }
+    }
+
+    // return_partial_slice_if_not_enough_events
+    @Test
+    public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage read = es.readAllBackwards(Position.END, 10);
+
+            ArrayUtils.reverse(messages);
+            assertTrue(read.getMessages().length < 10);
+            TestHelpers.assertEventDataEqual(messages, read.getMessages());
+        }
+    }
+
+    // return_events_in_reversed_order_compared_to_written
+    @Test
+    public void shouldReturnEventsInReversedOrderCompredToWritten() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage read = es.readAllBackwards(Position.END, messages.length);
+
+            ArrayUtils.reverse(messages);
+            TestHelpers.assertEventDataEqual(messages, read.getMessages());
+        }
+    }
+
+    // be_able_to_read_all_one_by_one_until_end_of_stream
+    @Test
+    public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Versionstamp position = Position.END;
+            ReadAllPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readAllBackwards(position, 1);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextPosition();
+                atEnd = page.isEnd();
+            }
+
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }
     }
 
     @Test
-    public void readAllBackwardsMultipleStreamTest() throws ExecutionException, InterruptedException {
+    public void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Versionstamp position = Position.END;
+            ReadAllPage page;
+
+            // TODO: implement
+            //TestHelpers.assertEventDataEqual(messages, new N);
+        }
+    }
+
+    // be_able_to_read_events_slice_at_time
+    @Test
+    public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Versionstamp position = Position.END;
+            ReadAllPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readAllBackwards(position, 5);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextPosition();
+                atEnd = page.isEnd();
+            }
+
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    // throw_when_got_int_max_value_as_maxcount
+    @Test
+    public void shouldThrowWhenMaxCountExceedsMaxReadCount() {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            assertThrows(IllegalArgumentException.class, () -> es.readAllBackwards(Position.END, EventStoreLayer.MAX_READ_SIZE + 1));
+        }
+    }
+
+    @Test
+    public void shouldReadFromMultipleStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -52,14 +177,13 @@ public class ReadAllEventsBackwardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
             es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
 
-            ReadAllPage forwardPage = es.readAllBackwards(Position.START, 4);
+            ReadAllPage read = es.readAllBackwards(Position.END, 4);
 
-            assertNotNull(forwardPage);
-            assertEquals(4, forwardPage.getMessages().length);
-            assertTrue(forwardPage.isEnd());
-            assertEquals("type", forwardPage.getMessages()[0].getType());
-            assertTrue(new String(forwardPage.getMessages()[0].getMetadata()).contains("metadata"));
-
+            assertEquals(4, read.getMessages().length);
+            assertTrue(read.isEnd());
+            NewStreamMessage[] combined = ObjectArrays.concat(messages, messages, NewStreamMessage.class);
+            ArrayUtils.reverse(combined);
+            TestHelpers.assertEventDataEqual(combined, read.getMessages());
         }
     }
 
@@ -75,7 +199,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
 
             // TODO: improve test
             // Does start make sense here? What does EventStore do?
-            ReadAllPage backwardsPage = es.readAllBackwards(Position.START, 1);
+            ReadAllPage backwardsPage = es.readAllBackwards(Position.END, 1);
             assertNotNull(backwardsPage);
             assertTrue(backwardsPage.getMessages()[0].getMessageId().toString().contains("5"));
 
@@ -84,12 +208,5 @@ public class ReadAllEventsBackwardTests extends TestFixture {
             assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("4"));
         }
     }
-
-    // return_empty_slice_if_asked_to_read_from_start
-    // return_partial_slice_if_not_enough_events
-    // return_events_in_reversed_order_compared_to_written
-    // be_able_to_read_all_one_by_one_until_end_of_stream
-    // be_able_to_read_events_slice_at_time
-    // throw_when_got_int_max_value_as_maxcount
 
 }
