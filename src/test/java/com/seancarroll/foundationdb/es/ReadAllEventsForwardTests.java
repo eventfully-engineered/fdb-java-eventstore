@@ -63,7 +63,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-
     // be_able_to_read_all_one_by_one_until_end_of_stream
     @Test
     public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
@@ -206,7 +205,5 @@ public class ReadAllEventsForwardTests extends TestFixture {
             assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
         }
     }
-
-
 
 }

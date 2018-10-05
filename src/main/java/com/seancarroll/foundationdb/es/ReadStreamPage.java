@@ -21,21 +21,22 @@ public class ReadStreamPage {
 
 
     /**
+     * The starting point (represented as a sequence number) of the read operation.
      * The version of the stream that read from.
      * EventStore has FromEventNumber - The starting point (represented as a sequence number) of the read operation.
      */
     private final long fromStreamVersion;
 
-
     /**
      * The position of the last message in the stream.
      * TODO: does EventStore have this?
      */
-    private final long lastStreamPosition; // TODO: should likely be a Versionstamp
+    private final long lastStreamPosition;
 
     /**
      * The next message version that can be read.
      * EventStore has NextEventNumber - The next event number that can be read.
+     * EventStore NextExpectedVersion - The next expected version for the stream -  For example if you write to a stream at version 1, then you expect it to be at version 1 next time you write
      */
     private final long nextStreamVersion;
 

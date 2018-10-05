@@ -42,28 +42,9 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // return_partial_slice_if_not_enough_events
-    @Test
-    public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            ReadAllPage read = es.readAllBackwards(Position.END, 10);
-
-            ArrayUtils.reverse(messages);
-            assertTrue(read.getMessages().length < 10);
-            TestHelpers.assertEventDataEqual(messages, read.getMessages());
-        }
-    }
-
     // return_events_in_reversed_order_compared_to_written
     @Test
-    public void shouldReturnEventsInReversedOrderCompredToWritten() throws ExecutionException, InterruptedException {
+    public void shouldReturnEventsInReversedOrderComparedToWritten() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -151,6 +132,25 @@ public class ReadAllEventsBackwardTests extends TestFixture {
             ArrayUtils.reverse(messages);
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
             TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    // return_partial_slice_if_not_enough_events
+    @Test
+    public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage read = es.readAllBackwards(Position.END, 10);
+
+            ArrayUtils.reverse(messages);
+            assertTrue(read.getMessages().length < 10);
+            TestHelpers.assertEventDataEqual(messages, read.getMessages());
         }
     }
 
