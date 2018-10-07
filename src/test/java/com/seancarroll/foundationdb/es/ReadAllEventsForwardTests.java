@@ -24,7 +24,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
-    // return_empty_slice_if_asked_to_read_from_end --> not sure this makes sense.
+    // Not sure this makes sense
     // If I read from the start I would get that starting event...so why would it be different if I read from the end?
     // I should get the end event...no?
     // what about backward with the START position. that should behave in the same manner
@@ -45,7 +45,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-    // return_events_in_same_order_as_written
     @Test
     public void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -63,7 +62,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-    // be_able_to_read_all_one_by_one_until_end_of_stream
     @Test
     public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -89,7 +87,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-    // be_able_to_read_events_slice_at_time
     @Test
     public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -116,7 +113,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-    // return_partial_slice_if_not_enough_events
     @Test
     public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -134,7 +130,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
         }
     }
 
-    // throw_when_got_int_max_value_as_maxcount
     @Test
     public void shouldThrowWhenMaxCountExceedsMaxReadCount() {
         FDB fdb = FDB.selectAPIVersion(520);
@@ -145,7 +140,6 @@ public class ReadAllEventsForwardTests extends TestFixture {
             assertThrows(IllegalArgumentException.class, () -> es.readAllForwards(Position.END, EventStoreLayer.MAX_READ_SIZE + 1));
         }
     }
-
 
     @Test
     public void readAllForwardTest() throws ExecutionException, InterruptedException {

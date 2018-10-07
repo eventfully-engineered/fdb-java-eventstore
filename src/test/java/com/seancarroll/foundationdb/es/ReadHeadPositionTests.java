@@ -20,10 +20,8 @@ public class ReadHeadPositionTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
-    // TOOD: any more tests scenarios?
-
     @Test
-    public void shouldReturnNullWhenNoMessagesAppended() throws ExecutionException, InterruptedException {
+    public void shouldReturnNullWhenNoEvents() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -36,7 +34,7 @@ public class ReadHeadPositionTests extends TestFixture {
     }
 
     @Test
-    public void readHeadPosition() throws ExecutionException, InterruptedException {
+    public void shouldReturnHeadEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

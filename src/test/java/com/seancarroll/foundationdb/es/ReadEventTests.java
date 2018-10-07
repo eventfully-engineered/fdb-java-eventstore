@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -85,7 +86,7 @@ public class ReadEventTests extends TestFixture {
 
     @Test
     public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-
+        fail("not implemented");
     }
 
     @Test
@@ -126,6 +127,9 @@ public class ReadEventTests extends TestFixture {
             assertEquals("test-stream", read.getStream());
             assertEquals(2, read.getEventNumber());
             TestHelpers.assertEventDataEqual(messages[2], read.getEvent());
+            // TODO: assert time is not null
+            // TODO: assert position not null...maybe greater than Position.Start and less than Position.END
+            // assert version not null
             // Assert.AreNotEqual(DateTime.MinValue, res.Event.Value.OriginalEvent.Created);
             //Assert.AreNotEqual(0, res.Event.Value.OriginalEvent.CreatedEpoch);
 

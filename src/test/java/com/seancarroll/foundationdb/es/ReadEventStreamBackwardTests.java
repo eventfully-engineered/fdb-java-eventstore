@@ -7,10 +7,15 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ReadEventStreamBackwardTests extends TestFixture {
 
@@ -66,16 +71,16 @@ public class ReadEventStreamBackwardTests extends TestFixture {
         }
     }
 
-    @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-        fail();
-    }
-
 //    @Test
 //    public void shouldReturnNoEventsWhenStreamIsEmpty() {
 //
 //    }
 
+
+    @Test
+    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+        fail("not implemented");
+    }
 
     @Test
     public void shouldReturnEmptySliceForNonExistingRange() throws ExecutionException, InterruptedException {
@@ -200,9 +205,8 @@ public class ReadEventStreamBackwardTests extends TestFixture {
         }
     }
 
-
     @Test
-    public void readStreamBackwards() throws ExecutionException, InterruptedException {
+    public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -211,16 +215,47 @@ public class ReadEventStreamBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadStreamPage backwardPage = es.readStreamBackwards("test-stream", StreamPosition.END, 1);
+            List<StreamMessage> all = new ArrayList<>();
+            Long position = StreamPosition.END;
+            ReadStreamPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readStreamBackwards("test-stream", position, 1);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextStreamVersion();
+                atEnd = page.isEnd();
+            }
 
-            assertNotNull(backwardPage);
-            assertEquals(1, backwardPage.getMessages().length);
-            assertFalse(backwardPage.isEnd());
-            assertTrue(backwardPage.getMessages()[0].getMessageId().toString().contains("5"));
-            assertEquals("type", backwardPage.getMessages()[0].getType());
-            assertTrue(new String(backwardPage.getMessages()[0].getMetadata()).contains("metadata"));
-            assertEquals(4, backwardPage.getMessages()[0].getStreamVersion());
-            assertEquals(3, backwardPage.getNextStreamVersion());
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    @Test
+    public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Long position = StreamPosition.END;
+            ReadStreamPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readStreamBackwards("test-stream", position, 5);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextStreamVersion();
+                atEnd = page.isEnd();
+            }
+
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }
     }
 
@@ -243,4 +278,5 @@ public class ReadEventStreamBackwardTests extends TestFixture {
         }
     }
 
+    //shouldReturnEmptyPageWhenAskedToReadFromStart
 }

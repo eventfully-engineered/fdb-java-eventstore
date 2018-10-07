@@ -25,6 +25,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     // return_empty_slice_if_asked_to_read_from_start
+    // Not sure this makes sense
     @Test
     public void shouldReturnEmptyPageWhenAskedToReadFromStart() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);

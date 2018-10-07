@@ -6,6 +6,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
@@ -65,16 +68,16 @@ public class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
-    @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-        fail();
-    }
-
 
 //    @Test
 //    public void shouldReturnNoEventsWhenStreamIsEmpty() {
 //
 //    }
+
+    @Test
+    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+        fail();
+    }
 
 
     @Test
@@ -177,6 +180,8 @@ public class ReadEventStreamFowardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
+
+
             assertNotNull(forwardPage);
             assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
 
@@ -188,6 +193,8 @@ public class ReadEventStreamFowardTests extends TestFixture {
 
         }
     }
+
+    // Can_read_next_page_past_end_of_stream
 
     @Test
     public void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
@@ -206,4 +213,57 @@ public class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
+    @Test
+    public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Long position = StreamPosition.START;
+            ReadStreamPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readStreamForwards("test-stream", position, 1);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextStreamVersion();
+                atEnd = page.isEnd();
+            }
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    @Test
+    public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+        FDB fdb = FDB.selectAPIVersion(520);
+        try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
+            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            List<StreamMessage> all = new ArrayList<>();
+            Long position = StreamPosition.START;
+            ReadStreamPage page;
+            boolean atEnd = false;
+            while (!atEnd) {
+                page = es.readStreamForwards("test-stream", position, 5);
+                all.addAll(Arrays.asList(page.getMessages()));
+                position = page.getNextStreamVersion();
+                atEnd = page.isEnd();
+            }
+
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+
+    // shouldReturnEmptyPageWhenAskedToReadFromEnd
 }
