@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
 // TODO: should be closeable?
 // TODO: where should we store stream metadata?
 // TODO: whats a common pattern for FoundationDB layers?
+// TODO: Idempotency handling
+// TODO: add async versions of methods
 // - Should our operations create their own transaction? If so how can clients make sure everything is one atomic transaction?
 // - Should you have clients pass in a transaction?
 // - Should clients pass in their on directory/subspace?
@@ -213,6 +215,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     private ReadAllPage readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) throws ExecutionException, InterruptedException {
+        Preconditions.checkNotNull(fromPositionInclusive);
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
@@ -226,7 +229,7 @@ public class EventStoreLayer implements EventStore {
             // assuming we want to support reading the end of the stream via readStreamForward with StreamPosition.END
             KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
                 ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
-                : KeySelector.firstGreaterOrEqual(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+                : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
 
             return tr.getRange(
                 begin,
@@ -291,6 +294,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     private ReadAllPage readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount, boolean reverse) throws ExecutionException, InterruptedException {
+        Preconditions.checkNotNull(fromPositionInclusive);
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
@@ -304,7 +308,23 @@ public class EventStoreLayer implements EventStore {
             // end is exclusive so we need to find first key greater than the end so that we include the end event
             KeySelector end = Objects.equals(fromPositionInclusive, Position.END)
                 ? KeySelector.firstGreaterThan(globalSubspace.range().end)
-                : KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+                : KeySelector.firstGreaterThan(globalSubspace.pack(fromPositionInclusive));
+
+            // ugly as heck but I think this is getting closer....but doesnt work
+//            KeySelector end = Objects.equals(fromPositionInclusive, Position.END)
+//                ? KeySelector.firstGreaterThan(globalSubspace.range().end)
+//                : Objects.equals(fromPositionInclusive, Position.START)
+//                    ? KeySelector.firstGreaterThan(globalSubspace.range().begin)
+//                    : KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+//
+//            KeySelector a = KeySelector.firstGreaterThan(globalSubspace.pack(fromPositionInclusive));
+//            KeySelector b = KeySelector.firstGreaterOrEqual(globalSubspace.range().begin);
+//            KeySelector e = KeySelector.firstGreaterOrEqual(globalSubspace.range().end);
+
+            // doesnt work
+//            byte[] end = Objects.equals(fromPositionInclusive, Position.END)
+//                ? KeySelector.firstGreaterThan(globalSubspace.range().end).getKey()
+//                : globalSubspace.pack(Tuple.from(fromPositionInclusive));
 
             return tr.getRange(
                 KeySelector.firstGreaterOrEqual(globalSubspace.range().begin),
@@ -384,11 +404,12 @@ public class EventStoreLayer implements EventStore {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
+            // TODO: review this
             // not sure how icky this is but it works
             // assuming we want to support reading the end of the stream via readStreamForward with StreamPosition.END
             KeySelector begin = fromVersionInclusive == StreamPosition.END
-                ? KeySelector.lastLessOrEqual(streamSubspace.range().end)
-                : KeySelector.firstGreaterOrEqual(streamSubspace.pack(Tuple.from(fromVersionInclusive)));
+                ? KeySelector.lastLessOrEqual(streamSubspace.range().end) // if I change this to firstGreaterThanOr equal ReadEventStreamFowardTests.shouldBeAbleToReadLastEvent:205 ArrayIndexOutOfBounds
+                : KeySelector.firstGreaterOrEqual(streamSubspace.pack(fromVersionInclusive));
 
             return tr.getRange(
                 begin,
