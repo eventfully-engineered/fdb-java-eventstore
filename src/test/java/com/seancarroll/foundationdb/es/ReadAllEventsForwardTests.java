@@ -16,20 +16,20 @@ import java.util.concurrent.ExecutionException;
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ReadAllEventsForwardTests extends TestFixture {
+class ReadAllEventsForwardTests extends TestFixture {
 
     @BeforeEach
-    public void clean() {
+    void clean() {
         FDB fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
-    // Not sure this makes sense
+    // TODO: Not sure this makes sense especially when we can read from start and end for the read event stream version which I think should have the same behavior
     // If I read from the start I would get that starting event...so why would it be different if I read from the end?
     // I should get the end event...no?
     // what about backward with the START position. that should behave in the same manner
     @Test
-    public void shouldReturnEmptyPageWhenAskedToReadFromEnd() throws ExecutionException, InterruptedException {
+    void shouldReturnEmptyPageWhenAskedToReadFromEnd() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -46,7 +46,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
+    void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -63,7 +63,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -88,7 +88,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -114,7 +114,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
+    void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -131,7 +131,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldThrowWhenMaxCountExceedsMaxReadCount() {
+    void shouldThrowWhenMaxCountExceedsMaxReadCount() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -142,7 +142,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllForwardTest() throws ExecutionException, InterruptedException {
+    void readAllForwardTest() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -160,7 +160,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllForwardMultipleStreamTest() throws ExecutionException, InterruptedException {
+    void readAllForwardMultipleStreamTest() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -179,7 +179,7 @@ public class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllForwardNextPage() throws ExecutionException, InterruptedException {
+    void readAllForwardNextPage() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

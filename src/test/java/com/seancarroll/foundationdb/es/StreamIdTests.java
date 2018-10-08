@@ -4,31 +4,31 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class StreamIdTests {
+class StreamIdTests {
 
     @Test
-    public void shouldNotBeEqualToNull() {
+    void shouldNotBeEqualToNull() {
         StreamId stream = new StreamId("");
         assertFalse(stream.equals(null));
     }
 
     @Test
-    public void shouldNotBeEqualToDifferentObject() {
+    void shouldNotBeEqualToDifferentObject() {
         assertFalse(new StreamId("").equals(new Object()));
     }
 
     @Test
-    public void shouldNotBeEqualWhenOriginalStreamIdsAreDifferent() {
+    void shouldNotBeEqualWhenOriginalStreamIdsAreDifferent() {
         assertFalse(new StreamId("id-1").equals(new StreamId("id-2")));
     }
 
     @Test
-    public void shouldBeEqualWhenOriginalStreamIdsAreSame() {
+    void shouldBeEqualWhenOriginalStreamIdsAreSame() {
         assertTrue(new StreamId("id-1").equals(new StreamId("id-1")));
     }
 
     @Test
-    public void shouldBeEqualWhenSameStreamIdObject() {
+    void shouldBeEqualWhenSameStreamIdObject() {
         StreamId stream = new StreamId("");
         assertTrue(stream.equals(stream));
     }

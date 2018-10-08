@@ -16,18 +16,20 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ReadAllEventsBackwardTests extends TestFixture {
+class ReadAllEventsBackwardTests extends TestFixture {
 
     @BeforeEach
-    public void clean() {
+    void clean() {
         FDB fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
-    // return_empty_slice_if_asked_to_read_from_start
-    // Not sure this makes sense
+    // TODO: Not sure this makes sense especially when we can read from start and end for the read event stream version which I think should have the same behavior
+    // If I read from the start I would get that starting event...so why would it be different if I read from the end?
+    // I should get the end event...no?
+    // what about backward with the START position. that should behave in the same manner
     @Test
-    public void shouldReturnEmptyPageWhenAskedToReadFromStart() throws ExecutionException, InterruptedException {
+    void shouldReturnEmptyPageWhenAskedToReadFromStart() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -43,9 +45,8 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // return_events_in_reversed_order_compared_to_written
     @Test
-    public void shouldReturnEventsInReversedOrderComparedToWritten() throws ExecutionException, InterruptedException {
+    void shouldReturnEventsInReversedOrderComparedToWritten() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -61,9 +62,8 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // be_able_to_read_all_one_by_one_until_end_of_stream
     @Test
-    public void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -90,7 +90,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -108,9 +108,8 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // be_able_to_read_events_slice_at_time
     @Test
-    public void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -136,9 +135,8 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // return_partial_slice_if_not_enough_events
     @Test
-    public void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
+    void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -155,9 +153,8 @@ public class ReadAllEventsBackwardTests extends TestFixture {
         }
     }
 
-    // throw_when_got_int_max_value_as_maxcount
     @Test
-    public void shouldThrowWhenMaxCountExceedsMaxReadCount() {
+    void shouldThrowWhenMaxCountExceedsMaxReadCount() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -168,7 +165,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void shouldReadFromMultipleStream() throws ExecutionException, InterruptedException {
+    void shouldReadFromMultipleStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -189,7 +186,7 @@ public class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    public void readAllBackwardNextPage() throws ExecutionException, InterruptedException {
+    void readAllBackwardNextPage() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

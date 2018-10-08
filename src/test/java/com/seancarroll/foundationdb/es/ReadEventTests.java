@@ -13,16 +13,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class ReadEventTests extends TestFixture {
+class ReadEventTests extends TestFixture {
 
     @BeforeEach
-    public void clean() {
+    void clean() {
         FDB fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
     @Test
-    public void shouldThrowWhenStreamIdIsNull() {
+    void shouldThrowWhenStreamIdIsNull() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -33,7 +33,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldThrowWhenStreamIdIsEmpty() {
+    void shouldThrowWhenStreamIdIsEmpty() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -44,7 +44,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldThrowWhenEventNumberIsLessThanNegativeOne() {
+    void shouldThrowWhenEventNumberIsLessThanNegativeOne() {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -56,7 +56,7 @@ public class ReadEventTests extends TestFixture {
 
     // TODO: check tests especially the next two below
     @Test
-    public void shouldNotifyUsingStatusCodeIfStreamNotFound() throws ExecutionException, InterruptedException {
+    void shouldNotifyUsingStatusCodeIfStreamNotFound() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -72,7 +72,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() throws ExecutionException, InterruptedException {
+    void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -85,12 +85,12 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
         fail("not implemented");
     }
 
     @Test
-    public void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() throws ExecutionException, InterruptedException {
+    void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -110,7 +110,7 @@ public class ReadEventTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnExistingEvent() throws ExecutionException, InterruptedException {
+    void shouldReturnExistingEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -138,9 +138,8 @@ public class ReadEventTests extends TestFixture {
 
     // retrieve_the_is_json_flag_properly
 
-    // return_last_event_in_stream_if_event_number_is_minus_one
     @Test
-    public void shouldReturnLastEventInStreamIfEventNumberIsNegativeOne() throws ExecutionException, InterruptedException {
+    void shouldReturnLastEventInStreamIfEventNumberIsNegativeOne() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);

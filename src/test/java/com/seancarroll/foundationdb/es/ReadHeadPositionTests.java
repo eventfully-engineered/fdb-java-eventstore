@@ -12,16 +12,16 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-public class ReadHeadPositionTests extends TestFixture {
+class ReadHeadPositionTests extends TestFixture {
 
     @BeforeEach
-    public void clean() {
+    void clean() {
         FDB fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
     @Test
-    public void shouldReturnNullWhenNoEvents() throws ExecutionException, InterruptedException {
+    void shouldReturnNullWhenNoEvents() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -34,7 +34,7 @@ public class ReadHeadPositionTests extends TestFixture {
     }
 
     @Test
-    public void shouldReturnHeadEvent() throws ExecutionException, InterruptedException {
+    void shouldReturnHeadEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
