@@ -29,7 +29,7 @@ class ReadAllEventsBackwardTests extends TestFixture {
     // I should get the end event...no?
     // what about backward with the START position. that should behave in the same manner
     @Test
-    void shouldReturnEmptyPageWhenAskedToReadFromStart() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadFirstEvent() throws ExecutionException, InterruptedException {
         FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
@@ -41,7 +41,8 @@ class ReadAllEventsBackwardTests extends TestFixture {
             ReadAllPage read = es.readAllBackwards(Position.START, 1);
 
             assertTrue(read.isEnd());
-            assertEquals(0, read.getMessages().length);
+            assertEquals(1, read.getMessages().length);
+            TestHelpers.assertEventDataEqual(messages[0], read.getMessages()[0]);
         }
     }
 

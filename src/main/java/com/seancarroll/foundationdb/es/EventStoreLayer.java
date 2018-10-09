@@ -221,7 +221,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace globalSubspace = getGlobalSubspace();
 
-        CompletableFuture<List<KeyValue>> r = database.read(tr -> {
+        List<KeyValue> kvs = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
@@ -237,12 +237,11 @@ public class EventStoreLayer implements EventStore {
                 rangeCount,
                 false,
                 StreamingMode.WANT_ALL).asList();
-        });
+        }).get();
 
         ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
         ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwards(nextPosition, maxCount);
 
-        List<KeyValue> kvs = r.get();
         if (kvs.isEmpty()) {
             return new ReadAllPage(
                 fromPositionInclusive,
@@ -304,27 +303,17 @@ public class EventStoreLayer implements EventStore {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
-            // TODO: need to handle Position.START
-            // end is exclusive so we need to find first key greater than the end so that we include the end event
-            KeySelector end = Objects.equals(fromPositionInclusive, Position.END)
-                ? KeySelector.firstGreaterThan(globalSubspace.range().end)
-                : KeySelector.firstGreaterThan(globalSubspace.pack(fromPositionInclusive));
-
-            // ugly as heck but I think this is getting closer....but doesnt work
-//            KeySelector end = Objects.equals(fromPositionInclusive, Position.END)
-//                ? KeySelector.firstGreaterThan(globalSubspace.range().end)
-//                : Objects.equals(fromPositionInclusive, Position.START)
-//                    ? KeySelector.firstGreaterThan(globalSubspace.range().begin)
-//                    : KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
-//
-//            KeySelector a = KeySelector.firstGreaterThan(globalSubspace.pack(fromPositionInclusive));
-//            KeySelector b = KeySelector.firstGreaterOrEqual(globalSubspace.range().begin);
-//            KeySelector e = KeySelector.firstGreaterOrEqual(globalSubspace.range().end);
-
-            // doesnt work
-//            byte[] end = Objects.equals(fromPositionInclusive, Position.END)
-//                ? KeySelector.firstGreaterThan(globalSubspace.range().end).getKey()
-//                : globalSubspace.pack(Tuple.from(fromPositionInclusive));
+            final KeySelector end;
+            if (Objects.equals(fromPositionInclusive, Position.START)) {
+                // firstGreaterThan (+1) doesnt work when attempting to get start position
+                // Seems like range queries dont work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
+                // so will bump the offset by 2
+                end = new KeySelector(globalSubspace.range().begin, false, 2);
+            } else if (Objects.equals(fromPositionInclusive, Position.END)) {
+                end = KeySelector.firstGreaterThan(globalSubspace.range().end);
+            } else {
+                end = KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+            }
 
             return tr.getRange(
                 KeySelector.firstGreaterOrEqual(globalSubspace.range().begin),
@@ -400,7 +389,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace streamSubspace = getStreamSubspace(streamId);
 
-        CompletableFuture<List<KeyValue>> r = database.read(tr -> {
+        List<KeyValue> kvs = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
@@ -417,11 +406,10 @@ public class EventStoreLayer implements EventStore {
                 rangeCount,
                 false,
                 StreamingMode.WANT_ALL).asList();
-        });
+        }).get();
 
         ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwardsInternal(streamId, nextPosition, maxCount);
 
-        List<KeyValue> kvs = r.get();
         if (kvs.isEmpty()) {
             return new ReadStreamPage(
                 streamId.getOriginalId(),
@@ -485,7 +473,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace streamSubspace = getStreamSubspace(streamId);
 
-        CompletableFuture<List<KeyValue>> r = database.read(tr -> {
+        List<KeyValue> kvs = database.read(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
             return tr.getRange(
@@ -495,11 +483,10 @@ public class EventStoreLayer implements EventStore {
                 rangeCount,
                 true,
                 StreamingMode.WANT_ALL).asList();
-        });
+        }).get();
 
         ReadNextStreamPage readNext = (long nextPosition) -> readStreamBackwardsInternal(streamId, nextPosition, maxCount);
 
-        List<KeyValue> kvs = r.get();
         if (kvs.isEmpty()) {
             return new ReadStreamPage(
                 streamId.getOriginalId(),
