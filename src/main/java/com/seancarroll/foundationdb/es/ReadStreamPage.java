@@ -70,29 +70,6 @@ public class ReadStreamPage {
      */
     private final boolean isEnd;
 
-    public ReadStreamPage(
-        String streamId,
-        PageReadStatus status,
-        int fromStreamVersion,
-        int nextStreamVersion,
-        int lastStreamVersion,
-        long lastStreamPosition,
-        ReadDirection readDirection,
-        boolean isEnd,
-        ReadNextStreamPage readNext) {
-
-        this(streamId,
-            status,
-            fromStreamVersion,
-            nextStreamVersion,
-            lastStreamVersion,
-            lastStreamPosition,
-            readDirection,
-            isEnd,
-            readNext,
-            null);
-    }
-
     /**
      *
      * @param streamId - The id of the stream that was read.

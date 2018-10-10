@@ -11,6 +11,7 @@ public class AppendResult {
 
     private Integer maxCount;
 
+    // TODO: EventStore instead has NextExpectedVersion - The next expected version for the stream -  For example if you write to a stream at version 1, then you expect it to be at version 1 next time you write
     /**
      * The current version of the stream after the append operation was performed
      *

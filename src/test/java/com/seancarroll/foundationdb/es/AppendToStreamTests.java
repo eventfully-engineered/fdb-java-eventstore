@@ -93,8 +93,6 @@ class AppendToStreamTests extends TestFixture {
             DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
             EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 
-            NewStreamMessage[] messages = createNewStreamMessages(1);
-
             String stream = "test-stream";
             es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage());
             assertDoesNotThrow(() -> es.appendToStream(stream, 0, createNewStreamMessage()));
@@ -144,7 +142,7 @@ class AppendToStreamTests extends TestFixture {
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
             assertEquals(4, appendResult.getCurrentVersion());
-            // TOOD: nextExpectedVersion?
+            // TODO: nextExpectedVersion?
         }
     }
 
@@ -152,22 +150,4 @@ class AppendToStreamTests extends TestFixture {
     // returns_success_status_when_conditionally_appending_with_matching_version
     // returns_failure_status_when_conditionally_appending_to_a_deleted_stream
 
-
-    @Test
-    void conflict() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
-        try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
-            assertNotNull(appendResult.getCurrentPosition());
-            assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
-
-            AppendResult append2 = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessages(7));
-
-
-        }
-    }
 }
