@@ -46,8 +46,8 @@ public class EventStoreLayer implements EventStore {
     // directorysubspace must allow manual prefixes
     /**
      *
-     * @param database
-     * @param subspace
+     * @param database the foundationDB database
+     * @param subspace the directory you wish use to store events for your event store.
      */
     public EventStoreLayer(Database database, DirectorySubspace subspace) {
         this.database = database;
@@ -225,8 +225,6 @@ public class EventStoreLayer implements EventStore {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
-            // not sure how icky this is but it works
-            // assuming we want to support reading the end of the stream via readStreamForward with StreamPosition.END
             KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
                 ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
                 : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
@@ -275,13 +273,9 @@ public class EventStoreLayer implements EventStore {
         // if we are at the end return next position as null otherwise
         // grab it from the last item from the range query which is outside the slice we want
         // TODO: Review / fix this.
-        final Versionstamp nextPosition;
-        if (maxCount >= kvs.size()) {
-            nextPosition = null;
-        } else {
-            Tuple nextPositionKey = globalSubspace.unpack(kvs.get(maxCount).getKey());
-            nextPosition = nextPositionKey.getVersionstamp(0);
-        }
+        Versionstamp nextPosition = maxCount >= kvs.size()
+            ? null
+            : globalSubspace.unpack(kvs.get(maxCount).getKey()).getVersionstamp(0);
 
         return new ReadAllPage(
             fromPositionInclusive,
@@ -359,13 +353,9 @@ public class EventStoreLayer implements EventStore {
         // if we are at the end return next position as null otherwise
         // grab it from the last item from the range query which is outside the slice we want
         // TODO: Review / fix this.
-        final Versionstamp nextPosition;
-        if (maxCount >= kvs.size()) {
-            nextPosition = null;
-        } else {
-            Tuple nextPositionKey = globalSubspace.unpack(kvs.get(maxCount).getKey());
-            nextPosition = nextPositionKey.getVersionstamp(0);
-        }
+        Versionstamp nextPosition = maxCount >= kvs.size()
+            ? null
+            : globalSubspace.unpack(kvs.get(maxCount).getKey()).getVersionstamp(0);
 
         return new ReadAllPage(
             fromPositionInclusive,
@@ -393,11 +383,8 @@ public class EventStoreLayer implements EventStore {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
-            // TODO: review this
-            // not sure how icky this is but it works
-            // assuming we want to support reading the end of the stream via readStreamForward with StreamPosition.END
             KeySelector begin = fromVersionInclusive == StreamPosition.END
-                ? KeySelector.lastLessOrEqual(streamSubspace.range().end) // if I change this to firstGreaterThanOr equal ReadEventStreamFowardTests.shouldBeAbleToReadLastEvent:205 ArrayIndexOutOfBounds
+                ? KeySelector.lastLessOrEqual(streamSubspace.range().end)
                 : KeySelector.firstGreaterOrEqual(streamSubspace.pack(fromVersionInclusive));
 
             return tr.getRange(
@@ -428,7 +415,6 @@ public class EventStoreLayer implements EventStore {
         StreamMessage[] messages = new StreamMessage[limit];
         for (int i = 0; i < limit; i++) {
             KeyValue kv = kvs.get(i);
-            Tuple key = streamSubspace.unpack(kv.getKey());
             Tuple tupleValue = Tuple.fromBytes(kv.getValue());
             StreamMessage message = new StreamMessage(
                 streamId.getOriginalId(),
@@ -505,7 +491,6 @@ public class EventStoreLayer implements EventStore {
         StreamMessage[] messages = new StreamMessage[limit];
         for (int i = 0; i < limit; i++) {
             KeyValue kv = kvs.get(i);
-            Tuple key = streamSubspace.unpack(kv.getKey());
             Tuple tupleValue = Tuple.fromBytes(kv.getValue());
             StreamMessage message = new StreamMessage(
                 streamId.getOriginalId(),
@@ -570,7 +555,7 @@ public class EventStoreLayer implements EventStore {
         return readEventInternal(new StreamId(stream), eventNumber);
     }
 
-    public ReadEventResult readEventInternal(StreamId streamId, long eventNumber) throws ExecutionException, InterruptedException {
+    private ReadEventResult readEventInternal(StreamId streamId, long eventNumber) throws ExecutionException, InterruptedException {
         Subspace streamSubspace = getStreamSubspace(streamId);
 
         if (Objects.equals(eventNumber, StreamPosition.END)) {
