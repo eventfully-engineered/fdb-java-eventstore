@@ -19,17 +19,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
-
-// TODO: use Long.parseUnsignedLong
-// TODO: should be closeable?
-// TODO: where should we store stream metadata?
-// TODO: whats a common pattern for FoundationDB layers?
-// TODO: Idempotency handling
-// TODO: add async versions of methods
-// - Should our operations create their own transaction? If so how can clients make sure everything is one atomic transaction?
-// - Should you have clients pass in a transaction?
-// - Should clients pass in their on directory/subspace?
-// - How do we want to handle position in global vs stream subspace?
+/**
+ *
+ */
 public class EventStoreLayer implements EventStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
@@ -39,20 +31,17 @@ public class EventStoreLayer implements EventStore {
     private final Database database;
     private final DirectorySubspace esSubspace;
 
-
-    // instead of subspace should we pass in a string which represents the default content subspace aka prefix
-    // DirectoryLayer.getDefault() uses DEFAULT_CONTENT_SUBSPACE which is no prefix
-    // or we could take in a tuple
-    // directorysubspace must allow manual prefixes
     /**
      *
      * @param database the foundationDB database
-     * @param subspace the directory you wish use to store events for your event store.
+     * @param subspace the directory you wish use to store events for your event store. TODO: does this need to allow manual subspaces?
      */
     public EventStoreLayer(Database database, DirectorySubspace subspace) {
         this.database = database;
         this.esSubspace = subspace;
     }
+
+    // TODO: add static factory class that will create a instance of EventStoreLayer with a default "es" DirectoryLayer
 
     @Override
     public AppendResult appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) throws InterruptedException, ExecutionException {
@@ -74,7 +63,6 @@ public class EventStoreLayer implements EventStore {
         return appendToStreamExpectedVersion(stream, expectedVersion, messages);
     }
 
-    // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
     private AppendResult appendToStreamExpectedVersionAny(StreamId streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
         ReadEventResult readEventResult = readEventInternal(streamId, StreamPosition.END);
@@ -93,7 +81,6 @@ public class EventStoreLayer implements EventStore {
 
                 Versionstamp versionstamp = Versionstamp.incomplete(i);
 
-                // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
 
                 // TODO: should this be outside the loop? does it matter?
@@ -112,7 +99,6 @@ public class EventStoreLayer implements EventStore {
         return new AppendResult(latestStreamVersion.get(), completedVersion);
     }
 
-    // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
     private AppendResult appendToStreamExpectedVersionNoStream(StreamId streamId, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
         ReadStreamPage backwardPage = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
@@ -129,7 +115,6 @@ public class EventStoreLayer implements EventStore {
             for (int i = 0; i < messages.length; i++) {
                 Versionstamp versionstamp = Versionstamp.incomplete(i);
 
-                // TODO: how should we store metadata
                 NewStreamMessage message = messages[i];
                 long createdDateUtcEpoch = Instant.now().toEpochMilli();
                 Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), i, createdDateUtcEpoch);
@@ -146,7 +131,6 @@ public class EventStoreLayer implements EventStore {
         return new AppendResult(messages.length - 1, completedVersion);
     }
 
-    // TODO: Idempotency handling. Check if the Messages have already been written.
     // TODO: clean up
     private AppendResult appendToStreamExpectedVersion(StreamId streamId, long expectedVersion, NewStreamMessage[] messages) throws ExecutionException, InterruptedException {
         ReadEventResult readEventResult = readEventInternal(streamId, StreamPosition.END);
@@ -167,7 +151,6 @@ public class EventStoreLayer implements EventStore {
 
                 Versionstamp versionstamp = Versionstamp.incomplete(i);
 
-                // TODO: how should we store metadata
                 long createdDateUtcEpoch = Instant.now().toEpochMilli();
                 NewStreamMessage message = messages[i];
                 Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
@@ -429,7 +412,7 @@ public class EventStoreLayer implements EventStore {
             messages[i] = message;
         }
 
-        // TODO: review this
+        // TODO: review this. What should next position be if at end and when not at end?
         Tuple nextPositionValue = Tuple.fromBytes(kvs.get(limit - 1).getValue());
         long nextPosition = nextPositionValue.getLong(5) + 1;
 
