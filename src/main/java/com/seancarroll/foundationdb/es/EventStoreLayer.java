@@ -1,6 +1,7 @@
 package com.seancarroll.foundationdb.es;
 
 import com.apple.foundationdb.*;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Tuple;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -41,7 +43,25 @@ public class EventStoreLayer implements EventStore {
         this.esSubspace = subspace;
     }
 
-    // TODO: add static factory class that will create a instance of EventStoreLayer with a default "es" DirectoryLayer
+    /**
+     * Default factory method
+     * @param database the foundationDB database
+     * @return an EventStoreLayer with a under an "es" Directory
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    public static EventStoreLayer getDefault(Database database) {
+        DirectorySubspace esSubspace = database.run((Transaction tr) -> {
+            try {
+                // return DirectoryLayer.getDefault().createOrOpen(tr, Collections.singletonList("es")).get();
+                return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("es")).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new EventStoreDirectoryException("unable to create EventStoreLayer directory subspace", e);
+            }
+        });
+
+        return new EventStoreLayer(database, esSubspace);
+    }
 
     @Override
     public AppendResult appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) throws InterruptedException, ExecutionException {
