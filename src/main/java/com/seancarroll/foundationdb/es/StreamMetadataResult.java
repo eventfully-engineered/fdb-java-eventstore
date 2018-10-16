@@ -22,15 +22,15 @@ public class StreamMetadataResult {
 
     private final Integer maxCount;
 
-    private final String metadataJson;
+    private final byte[] metadata;
 
     public StreamMetadataResult(String streamId, long metadataStreamVersion) {
         this(streamId, metadataStreamVersion, null);
     }
 
 
-    public StreamMetadataResult(String streamId, long metadataStreamVersion, String metadataJson) {
-        this(streamId, metadataStreamVersion, null, null, metadataJson);
+    public StreamMetadataResult(String streamId, long metadataStreamVersion, byte[] metadata) {
+        this(streamId, metadataStreamVersion, null, null, metadata);
     }
 
     /**
@@ -39,18 +39,18 @@ public class StreamMetadataResult {
      * @param metadataStreamVersion The verson of the metadata stream
      * @param maxAge The max age of messages in the stream
      * @param maxCount The max count of message in the stream
-     * @param metadataJson Custom metadata serialized as JSON
+     * @param metadata Custom metadata
      */
     public StreamMetadataResult(String streamId,
                                 long metadataStreamVersion,
                                 Integer maxAge,
                                 Integer maxCount,
-                                String metadataJson) {
+                                byte[] metadata) {
         this.streamId = streamId;
         this.metadataStreamVersion = metadataStreamVersion;
         this.maxAge = maxAge;
         this.maxCount = maxCount;
-        this.metadataJson = metadataJson;
+        this.metadata = metadata;
     }
 
     public String getStreamId() {
@@ -69,8 +69,8 @@ public class StreamMetadataResult {
         return maxCount;
     }
 
-    public String getMetadataJson() {
-        return metadataJson;
+    public byte[] getMetadata() {
+        return metadata;
     }
 
     @Override
