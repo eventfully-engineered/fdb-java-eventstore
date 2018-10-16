@@ -66,13 +66,11 @@ public class EventStoreLayer implements EventStore {
     @Override
     public AppendResult appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) throws InterruptedException, ExecutionException {
         Preconditions.checkNotNull(streamId);
-
-        StreamId stream = new StreamId(streamId);
-
-        // TODO: is this how we want to handle this?
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
         }
+
+        StreamId stream = new StreamId(streamId);
 
         if (expectedVersion == ExpectedVersion.ANY) {
             return appendToStreamExpectedVersionAny(stream, messages);
