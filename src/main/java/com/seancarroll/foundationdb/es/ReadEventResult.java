@@ -1,8 +1,12 @@
 package com.seancarroll.foundationdb.es;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+/**
+ *
+ */
 public class ReadEventResult {
 
     private final ReadEventStatus status;
@@ -10,6 +14,13 @@ public class ReadEventResult {
     private final long eventNumber;
     private final StreamMessage event;
 
+    /**
+     *
+     * @param status
+     * @param stream
+     * @param eventNumber
+     * @param event
+     */
     public ReadEventResult(ReadEventStatus status,
                            String stream,
                            long eventNumber,
@@ -35,5 +46,15 @@ public class ReadEventResult {
 
     public StreamMessage getEvent() {
         return event;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("status", getStatus())
+            .add("stream", getStream())
+            .add("eventNumber", getEventNumber())
+            .add("event", getEvent())
+            .toString();
     }
 }

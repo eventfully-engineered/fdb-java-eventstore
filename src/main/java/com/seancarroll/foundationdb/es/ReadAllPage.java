@@ -68,7 +68,6 @@ public class ReadAllPage {
      * @return
      */
     public ReadAllPage readNext() throws ExecutionException, InterruptedException {
-        // TODO: should this just return a ReadNextAllPage instead?
         return readNext.get(nextPosition);
     }
 

@@ -6,6 +6,9 @@ import com.google.common.base.Strings;
 
 import java.util.UUID;
 
+/**
+ * Represents a message to be appended to a stream.
+ */
 public class NewStreamMessage {
 
     private final UUID messageId;

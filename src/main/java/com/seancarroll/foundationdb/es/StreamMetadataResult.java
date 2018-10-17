@@ -24,11 +24,21 @@ public class StreamMetadataResult {
 
     private final byte[] metadata;
 
+    /**
+     *
+     * @param streamId
+     * @param metadataStreamVersion
+     */
     public StreamMetadataResult(String streamId, long metadataStreamVersion) {
         this(streamId, metadataStreamVersion, null);
     }
 
-
+    /**
+     *
+     * @param streamId
+     * @param metadataStreamVersion
+     * @param metadata
+     */
     public StreamMetadataResult(String streamId, long metadataStreamVersion, byte[] metadata) {
         this(streamId, metadataStreamVersion, null, null, metadata);
     }

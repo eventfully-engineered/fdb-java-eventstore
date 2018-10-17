@@ -12,26 +12,19 @@ import java.util.concurrent.ExecutionException;
 public class ReadStreamPage {
 
     /**
-     * The collection of messages read.
-     * EventStore has ResolvedEvent[] Events - The events read represented as <see cref="ResolvedEvent"/>
+     * The collection of messages read
      */
     private final StreamMessage[] messages;
 
+    /**
+     *
+     */
     private final ReadNextStreamPage readNext;
 
-
     /**
-     * The starting point (represented as a sequence number) of the read operation.
-     * The version of the stream that read from.
-     * EventStore has FromEventNumber - The starting point (represented as a sequence number) of the read operation.
+     * The starting point (represented as a sequence number) of the read
      */
     private final long fromStreamVersion;
-
-    /**
-     * The position of the last message in the stream.
-     * TODO: does EventStore have this?
-     */
-    private final long lastStreamPosition;
 
     /**
      * The next message version that can be read.
@@ -41,6 +34,12 @@ public class ReadStreamPage {
     private final long nextStreamVersion;
 
     /**
+     * The position of the last message in the stream.
+     * TODO: should use "Position" terminology here
+     */
+    private final long lastStreamPosition; //LastEventNumber
+
+    /**
      * The version of the last message in the stream.
      * EventStore has LastEventNumber - The last event number in the stream.
      */
@@ -48,7 +47,6 @@ public class ReadStreamPage {
 
     /**
      * The direction of read operation.
-     * Same in EventStore
      */
     private final ReadDirection readDirection;
 
@@ -59,14 +57,12 @@ public class ReadStreamPage {
     private final PageReadStatus status;
 
     /**
-     * The id of the stream that was read.
-     * EventStore has stream property - The name of the stream read
+     * The id (name) of the stream read.
      */
     private final String streamId;
 
     /**
-     * Whether or not this is the end of the stream.
-     * EventStore has IsEndOfStream - A boolean representing whether or not this is the end of the stream.
+     * A boolean representing Whether or not this is the end of the stream.
      */
     private final boolean isEnd;
 

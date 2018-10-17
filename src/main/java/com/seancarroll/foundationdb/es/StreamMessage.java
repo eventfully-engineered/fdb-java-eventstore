@@ -5,6 +5,9 @@ import com.google.common.base.MoreObjects;
 
 import java.util.UUID;
 
+/**
+ * Represents a message in a stream.
+ */
 public class StreamMessage {
 
     private final Versionstamp position;
@@ -16,6 +19,17 @@ public class StreamMessage {
     private final String type;
     private final byte[] data;
 
+    /**
+     *
+     * @param streamId
+     * @param messageId
+     * @param streamVersion
+     * @param position
+     * @param createdUtc
+     * @param type
+     * @param metadata
+     * @param data
+     */
     public StreamMessage(String streamId,
                          UUID messageId,
                          long streamVersion,

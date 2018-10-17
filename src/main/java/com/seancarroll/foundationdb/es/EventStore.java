@@ -79,7 +79,7 @@ public interface EventStore {
      * @return
      */
     SetStreamMetadataResult setStreamMetadata(String streamId,
-                                              long expectedStreamMetadataVersion, // = ExpectedVersion.Any,
+                                              long expectedStreamMetadataVersion,
                                               Integer maxAge,
                                               Integer maxCount,
                                               String metadataJson);
@@ -90,7 +90,17 @@ public interface EventStore {
      */
     StreamMetadataResult getStreamMetadata(String streamId);
 
+    /**
+     *
+     * @param streamId
+     * @param expectedVersion
+     */
     void deleteStream(String streamId, long expectedVersion);
 
+    /**
+     *
+     * @param streamId
+     * @param messageId
+     */
     void deleteMessage(String streamId, UUID messageId);
 }

@@ -1,5 +1,8 @@
 package com.seancarroll.foundationdb.es;
 
+/**
+ * Represents the status of a event read.
+ */
 public enum ReadEventStatus {
 
     /**
