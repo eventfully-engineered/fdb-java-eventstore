@@ -2,7 +2,6 @@ package com.seancarroll.foundationdb.es;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,18 +11,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AppendToStreamTests extends TestFixture {
 
+    private FDB fdb;
+
     @BeforeEach
     void clean() {
-        FDB fdb = FDB.selectAPIVersion(520);
+        fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
     @Test
-    void shouldNotAllowAppendingZeroEventsToStream() {
-        FDB fdb = FDB.selectAPIVersion(520);
+    void shouldNotAllowAppendingZeroEventsToStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             // TODO: verify message: messages must not be null or empty
             assertThrows(IllegalArgumentException.class, () -> es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, new NewStreamMessage[0]));
@@ -32,10 +31,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldAppendWithNoStreamExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
@@ -47,10 +44,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldAppendWithAnyExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
@@ -69,10 +64,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldReturnPositionWithWriting() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
@@ -88,10 +81,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldAppendWithCorrectExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
             es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage());
@@ -101,10 +92,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldAppendWithAnyExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
             assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
@@ -113,10 +102,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void shouldFailAppendingWithWrongExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
             assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
@@ -133,10 +120,8 @@ class AppendToStreamTests extends TestFixture {
 
     @Test
     void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);

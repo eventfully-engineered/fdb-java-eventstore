@@ -50,16 +50,8 @@ public class EventStoreLayer implements EventStore {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    public static EventStoreLayer getDefault(Database database) {
-        DirectorySubspace esSubspace = database.run((Transaction tr) -> {
-            try {
-                // return DirectoryLayer.getDefault().createOrOpen(tr, Collections.singletonList("es")).get();
-                return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("es")).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new EventStoreDirectoryException("unable to create EventStoreLayer directory subspace", e);
-            }
-        });
-
+    public static EventStoreLayer getDefault(Database database) throws ExecutionException, InterruptedException {
+        DirectorySubspace esSubspace = DirectoryLayer.getDefault().createOrOpen(database, Collections.singletonList("es")).get();
         return new EventStoreLayer(database, esSubspace);
     }
 
@@ -105,6 +97,7 @@ public class EventStoreLayer implements EventStore {
                 long createdDateUtcEpoch = Instant.now().toEpochMilli();
                 Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
                 Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                // TODO: probably shouldn't store the event twice. Instead maybe we should just store a pointer
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
             }
@@ -507,8 +500,8 @@ public class EventStoreLayer implements EventStore {
         }
 
         // TODO: review this. What should next position be if at end and when not at end?
-        Tuple nextPositionValue = Tuple.fromBytes(kvs.get(limit - 1).getValue());
-        long nextPosition = nextPositionValue.getLong(5) - 1;
+        Tuple lastTuple = Tuple.fromBytes(kvs.get(limit - 1).getValue());
+        long nextPosition = lastTuple.getLong(5) - 1;
 
         return new ReadStreamPage(
             streamId.getOriginalId(),

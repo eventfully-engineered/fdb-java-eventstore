@@ -1,28 +1,10 @@
 package com.seancarroll.foundationdb.es;
 
-import com.apple.foundationdb.Database;
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 abstract class TestFixture {
-
-
-    static DirectorySubspace createEventStoreSubspace(Database db) {
-        return db.run((Transaction tr) -> {
-            try {
-                return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("es")).get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-            return null;
-        });
-    }
 
     static NewStreamMessage createNewStreamMessage() {
         return createNewStreamMessage(null, null);

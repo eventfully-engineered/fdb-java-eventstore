@@ -2,7 +2,6 @@ package com.seancarroll.foundationdb.es;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.ObjectArrays;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +17,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReadAllEventsForwardTests extends TestFixture {
 
+    private FDB fdb;
+
     @BeforeEach
     void clean() {
-        FDB fdb = FDB.selectAPIVersion(520);
+        fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
 
@@ -30,10 +31,8 @@ class ReadAllEventsForwardTests extends TestFixture {
     // what about backward with the START position. that should behave in the same manner
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -48,10 +47,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -65,10 +62,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -90,10 +85,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -116,10 +109,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -132,11 +123,9 @@ class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    void shouldThrowWhenMaxCountExceedsMaxReadCount() {
-        FDB fdb = FDB.selectAPIVersion(520);
+    void shouldThrowWhenMaxCountExceedsMaxReadCount() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             assertThrows(IllegalArgumentException.class, () -> es.readAllForwards(Position.END, EventStoreLayer.MAX_READ_SIZE + 1));
         }
@@ -144,10 +133,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void readAllForwardTest() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -162,10 +149,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void readAllForwardMultipleStreamTest() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
@@ -181,10 +166,8 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @Test
     void readAllForwardNextPage() throws ExecutionException, InterruptedException {
-        FDB fdb = FDB.selectAPIVersion(520);
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
-            EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
