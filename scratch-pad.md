@@ -71,6 +71,21 @@ do
 } while (!currentSlice.IsEndOfStream);
 ```
 
+## Deletes 
+
+Have a stream of persistent subscriptions  
+When a delete operation is made it will just append a message to the "delete stream" stream  
+A background process will be notified, or will poll, that a delete operation was requested and perform the following
+- it will delete the entire stream (range delete)
+- iterate over the all stream deleting events
+- update the persistent subscription
+
+All of this should be in a single transaction?    
+Only one delete / clean up thread?  
+Do we need to checkpoint where the thread is? Would be helpful in the scenarios in which the thread dies  
+If multiple deletes occur should we do them both at the same time to avoid iterating over the all stream more than we have to?
+
+
 ## Random Research
 
 Links to docs, research, projects that have inspired design or implementation
