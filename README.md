@@ -112,3 +112,6 @@ Links to docs, research, projects that have inspired design or implementation
 - https://github.com/hashicorp/vault/blob/master/physical/foundationdb/foundationdb.go
 - https://eventstore.org/docs/dotnet-api/reading-events/index.html
 - https://www.snowflake.com/how-foundationdb-powers-snowflake-metadata-forward/
+
+
+- https://forums.foundationdb.org/t/ranges-without-explicit-end-go/773 --> read
