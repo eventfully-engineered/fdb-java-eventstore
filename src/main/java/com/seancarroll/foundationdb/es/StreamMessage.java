@@ -20,7 +20,7 @@ public class StreamMessage {
     private final byte[] data;
 
     /**
-     *
+     * Constructs a new StreamMessage
      * @param streamId
      * @param messageId
      * @param streamVersion

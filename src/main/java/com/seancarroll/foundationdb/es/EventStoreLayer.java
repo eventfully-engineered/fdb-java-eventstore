@@ -293,8 +293,8 @@ public class EventStoreLayer implements EventStore {
 
             final KeySelector end;
             if (Objects.equals(fromPositionInclusive, Position.START)) {
-                // firstGreaterThan (+1) doesnt work when attempting to get start position
-                // Seems like range queries dont work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
+                // firstGreaterThan (+1) doesn't work when attempting to get start position
+                // Seems like range queries don't work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
                 // so will bump the offset by 2
                 end = new KeySelector(globalSubspace.range().begin, false, 2);
             } else if (Objects.equals(fromPositionInclusive, Position.END)) {

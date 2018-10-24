@@ -137,7 +137,6 @@ public class ReadStreamPage {
     }
 
     public ReadStreamPage getNext() throws ExecutionException, InterruptedException {
-        // TODO: should this just return a ReadNextStreamPage instead?
         return readNext.get(nextStreamVersion);
     }
 
