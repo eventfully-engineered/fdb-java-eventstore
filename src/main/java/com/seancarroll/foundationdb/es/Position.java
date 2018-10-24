@@ -16,12 +16,10 @@ public class Position {
         .putInt(0)
         .array());
 
-
-    // TODO: is this a valid way to do END?
     public static final Versionstamp END = Versionstamp.fromBytes(ByteBuffer.allocate(Versionstamp.LENGTH)
         .order(ByteOrder.BIG_ENDIAN)
-        .putLong(Long.MAX_VALUE)
-        .putInt(Integer.MAX_VALUE)
+        .putLong(-1L)
+        .putInt(-1)
         .array());
 
     private Position() {
