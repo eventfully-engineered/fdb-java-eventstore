@@ -3,36 +3,23 @@ package com.seancarroll.foundationdb.es;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TestHelpers {
 
-    static void clean(FDB fdb) {
+    static void clean(FDB fdb) throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
+            DirectorySubspace eventStoreSubspace = EventStoreLayer.getDefaultDirectorySubspace(db);
             db.run((Transaction tr) -> {
-                DirectorySubspace eventStoreSubspace = createEventStoreSubspace(db);
                 tr.clear(eventStoreSubspace.range());
                 return null;
             });
         }
-    }
-
-    private static DirectorySubspace createEventStoreSubspace(Database db) {
-        return db.run((Transaction tr) -> {
-            try {
-                return new DirectoryLayer(true).createOrOpen(tr, Collections.singletonList("es")).get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-            return null;
-        });
     }
 
     static void assertEventDataEqual(NewStreamMessage expected, StreamMessage actual) {

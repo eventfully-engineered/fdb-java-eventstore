@@ -15,7 +15,7 @@ class ReadEventTests extends TestFixture {
     private FDB fdb;
 
     @BeforeEach
-    void clean() {
+    void clean() throws ExecutionException, InterruptedException {
         fdb = FDB.selectAPIVersion(520);
         TestHelpers.clean(fdb);
     }
