@@ -324,7 +324,7 @@ public class EventStoreLayer implements EventStore {
         }).get();
 
         ReadDirection direction = reverse ? ReadDirection.BACKWARD : ReadDirection.FORWARD;
-        ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwards(nextPosition, maxCount);
+        ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllBackwards(nextPosition, maxCount);
 
         if (kvs.isEmpty()) {
             return new ReadAllPage(
