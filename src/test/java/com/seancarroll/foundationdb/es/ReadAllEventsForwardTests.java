@@ -25,10 +25,6 @@ class ReadAllEventsForwardTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
-    // TODO: Not sure this makes sense especially when we can read from start and end for the read event stream version which I think should have the same behavior
-    // If I read from the start I would get that starting event...so why would it be different if I read from the end?
-    // I should get the end event...no?
-    // what about backward with the START position. that should behave in the same manner
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
@@ -108,6 +104,26 @@ class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
+    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage page = es.readAllForwards(Position.START, 1);
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
+            while (!page.isEnd()) {
+                page = page.readNext();
+                all.addAll(Arrays.asList(page.getMessages()));
+            }
+
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    @Test
     void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
@@ -132,22 +148,6 @@ class ReadAllEventsForwardTests extends TestFixture {
     }
 
     @Test
-    void readAllForwardTest() throws ExecutionException, InterruptedException {
-        try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            ReadAllPage read = es.readAllForwards(Position.START, 1);
-
-            assertEquals(1, read.getMessages().length);
-            assertFalse(read.isEnd());
-            TestHelpers.assertEventDataEqual(messages[0], read.getMessages()[0]);
-        }
-    }
-
-    @Test
     void readAllForwardMultipleStreamTest() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
@@ -161,26 +161,6 @@ class ReadAllEventsForwardTests extends TestFixture {
             assertEquals(4, read.getMessages().length);
             assertTrue(read.isEnd());
             TestHelpers.assertEventDataEqual(ObjectArrays.concat(messages, messages, NewStreamMessage.class), read.getMessages());
-        }
-    }
-
-    @Test
-    void readAllForwardNextPage() throws ExecutionException, InterruptedException {
-        try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            // TODO: improve test
-            ReadAllPage forwardPage = es.readAllForwards(Position.START, 1);
-
-            assertNotNull(forwardPage);
-            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
-
-            ReadAllPage nextPage = forwardPage.readNext();
-            assertNotNull(nextPage);
-            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
         }
     }
 

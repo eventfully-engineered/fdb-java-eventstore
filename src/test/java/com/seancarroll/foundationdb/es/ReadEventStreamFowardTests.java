@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ReadEventStreamFowardTests extends TestFixture {
 
@@ -67,10 +68,10 @@ class ReadEventStreamFowardTests extends TestFixture {
 //
 //    }
 
-    @Test
-    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-        fail();
-    }
+//    @Test
+//    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+//        fail();
+//    }
 
 
     @Test
@@ -151,30 +152,6 @@ class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
-    // TODO: improve test
-    @Test
-    void readStreamForwardNextPage() throws ExecutionException, InterruptedException {
-        try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            ReadStreamPage forwardPage = es.readStreamForwards("test-stream", 0, 1);
-
-
-            assertNotNull(forwardPage);
-            assertTrue(forwardPage.getMessages()[0].getMessageId().toString().contains("1"));
-
-            ReadStreamPage nextPage = forwardPage.getNext();
-            assertNotNull(nextPage);
-            assertEquals(1, nextPage.getMessages().length);
-            assertFalse(nextPage.isEnd());
-            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("2"));
-
-        }
-    }
-
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
@@ -237,6 +214,25 @@ class ReadEventStreamFowardTests extends TestFixture {
         }
     }
 
-    // Can_read_next_page_past_end_of_stream
-    // shouldReturnEmptyPageWhenAskedToReadFromEnd
+    @Test
+    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadStreamPage page = es.readStreamForwards("test-stream", StreamPosition.START, 1);
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
+            while (!page.isEnd()) {
+                page = page.readNext();
+                all.addAll(Arrays.asList(page.getMessages()));
+            }
+
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    // TODO: Can_read_next_page_past_end_of_stream
 }

@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.assertEventDataEqual;
-import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -70,10 +69,10 @@ class ReadEventStreamBackwardTests extends TestFixture {
 //    }
 
 
-    @Test
-    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-        fail("not implemented");
-    }
+//    @Test
+//    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
+//        fail("not implemented");
+//    }
 
     @Test
     void shouldReturnEmptySliceForNonExistingRange() throws ExecutionException, InterruptedException {
@@ -169,7 +168,6 @@ class ReadEventStreamBackwardTests extends TestFixture {
         }
     }
 
-    // TODO: this is likely a duplicate
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
@@ -235,20 +233,26 @@ class ReadEventStreamBackwardTests extends TestFixture {
         }
     }
 
-    // TODO: improve test
     @Test
-    void readStreamBackwardsNextPage() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
 
-            ReadStreamPage backwardsPage = es.readStreamBackwards("test-stream", StreamPosition.END, 1);
-            ReadStreamPage nextPage = backwardsPage.getNext();
+            ReadStreamPage page = es.readStreamBackwards("test-stream", StreamPosition.END, 1);
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
+            while (!page.isEnd()) {
+                page = page.readNext();
+                all.addAll(Arrays.asList(page.getMessages()));
+            }
 
-            TestHelpers.assertEventDataEqual(messages[3], nextPage.getMessages()[0]);
-
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }
     }
+
+    // TODO: Can_read_next_page_past_end_of_stream
 }

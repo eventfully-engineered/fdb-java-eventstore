@@ -136,7 +136,7 @@ public class ReadStreamPage {
         return isEnd;
     }
 
-    public ReadStreamPage getNext() throws ExecutionException, InterruptedException {
+    public ReadStreamPage readNext() throws ExecutionException, InterruptedException {
         return readNext.get(nextStreamVersion);
     }
 

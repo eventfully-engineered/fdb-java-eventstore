@@ -25,10 +25,6 @@ class ReadAllEventsBackwardTests extends TestFixture {
         TestHelpers.clean(fdb);
     }
 
-    // TODO: Not sure this makes sense especially when we can read from start and end for the read event stream version which I think should have the same behavior
-    // If I read from the start I would get that starting event...so why would it be different if I read from the end?
-    // I should get the end event...no?
-    // what about backward with the START position. that should behave in the same manner
     @Test
     void shouldBeAbleToReadFirstEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
@@ -86,24 +82,6 @@ class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
-        try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            List<StreamMessage> all = new ArrayList<>();
-            Versionstamp position = Position.END;
-            ReadAllPage page;
-
-            fail("not yet implemented");
-            // TODO: implement
-            //TestHelpers.assertEventDataEqual(messages, new N);
-        }
-    }
-
-    @Test
     void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
@@ -120,6 +98,27 @@ class ReadAllEventsBackwardTests extends TestFixture {
                 all.addAll(Arrays.asList(page.getMessages()));
                 position = page.getNextPosition();
                 atEnd = page.isEnd();
+            }
+
+            ArrayUtils.reverse(messages);
+            StreamMessage[] messagesArray = new StreamMessage[all.size()];
+            TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    @Test
+    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db);
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+
+            ReadAllPage page = es.readAllBackwards(Position.END, 1);
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
+            while (!page.isEnd()) {
+                page = page.readNext();
+                all.addAll(Arrays.asList(page.getMessages()));
             }
 
             ArrayUtils.reverse(messages);
@@ -169,26 +168,6 @@ class ReadAllEventsBackwardTests extends TestFixture {
             NewStreamMessage[] combined = ObjectArrays.concat(messages, messages, NewStreamMessage.class);
             ArrayUtils.reverse(combined);
             TestHelpers.assertEventDataEqual(combined, read.getMessages());
-        }
-    }
-
-    @Test
-    void readAllBackwardNextPage() throws ExecutionException, InterruptedException {
-        try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
-
-            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-
-            // TODO: improve test
-            // Does start make sense here? What does EventStore do?
-            ReadAllPage backwardsPage = es.readAllBackwards(Position.END, 1);
-            assertNotNull(backwardsPage);
-            assertTrue(backwardsPage.getMessages()[0].getMessageId().toString().contains("5"));
-
-            ReadAllPage nextPage = backwardsPage.readNext();
-            assertNotNull(nextPage);
-            assertTrue(nextPage.getMessages()[0].getMessageId().toString().contains("4"));
         }
     }
 
