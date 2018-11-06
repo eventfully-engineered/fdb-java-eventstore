@@ -29,8 +29,6 @@ public class StreamId {
             throw new IllegalArgumentException("value must not contain whitespace");
         }
         this.originalId = id;
-
-        // new String(Hashing.murmur3_128().hashString(originalId, StandardCharsets.UTF_8).asBytes(), StandardCharsets.UTF_8)
         this.hash = Hashing.murmur3_128().hashString(id, UTF_8).toString();
     }
 
