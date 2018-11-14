@@ -106,7 +106,16 @@ class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
-            assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
+            // TODO: is there a way to have WrongExpectedVersionException bubble up instead of being wrapped in an ExecutionException?
+            // What is the standard practice for this?
+            //assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
+            try {
+                es.appendToStream("test-stream", 1, createNewStreamMessage());
+            } catch (ExecutionException ex) {
+                assertEquals(WrongExpectedVersionException.class, ex.getCause().getClass());
+            } catch (Exception ex) {
+                fail("wrong exception was thrown", ex);
+            }
         }
     }
 

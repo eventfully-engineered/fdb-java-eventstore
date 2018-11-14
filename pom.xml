@@ -25,6 +25,28 @@
         <mockito.version>2.23.0</mockito.version>
         <assertj.version>3.11.1</assertj.version>
         <jmh.version>1.21</jmh.version>
+
+        <coveralls-maven-plugin.version>4.3.0</coveralls-maven-plugin.version>
+        <dependency-check-maven.version>3.3.4</dependency-check-maven.version>
+        <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+        <maven-clean-plugin.version>3.1.0</maven-clean-plugin.version>
+        <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
+        <maven-dependency-plugin.version>3.1.1</maven-dependency-plugin.version>
+        <maven-deploy-plugin.version>2.8.2</maven-deploy-plugin.version>
+        <maven-enforcer-plugin.version>1.4.1</maven-enforcer-plugin.version>
+        <maven-failsafe-plugin.verion>2.22.1</maven-failsafe-plugin.verion>
+        <maven-install-plugin.version>2.5.2</maven-install-plugin.version>
+        <maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
+        <maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
+        <maven-project-info-reports-plugin.version>3.0.0</maven-project-info-reports-plugin.version>
+        <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
+        <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
+        <maven-site-plugin.version>3.7.1</maven-site-plugin.version>
+        <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
+        <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
+        <sonar-maven-plugin.version>3.5.0.1254</sonar-maven-plugin.version>
+        <spotbugs-maven-plugin.version>3.1.7</spotbugs-maven-plugin.version>
+        <sphinx-maven-plugin.version>2.2.2</sphinx-maven-plugin.version>
     </properties>
 
     <scm>

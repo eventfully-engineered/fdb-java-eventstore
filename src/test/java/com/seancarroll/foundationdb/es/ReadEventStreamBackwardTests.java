@@ -244,7 +244,7 @@ class ReadEventStreamBackwardTests extends TestFixture {
             ReadStreamPage page = es.readStreamBackwards("test-stream", StreamPosition.END, 1);
             List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
             while (!page.isEnd()) {
-                page = page.readNext();
+                page = page.readNext().get();
                 all.addAll(Arrays.asList(page.getMessages()));
             }
 

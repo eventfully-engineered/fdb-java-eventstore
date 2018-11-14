@@ -225,7 +225,7 @@ class ReadEventStreamFowardTests extends TestFixture {
             ReadStreamPage page = es.readStreamForwards("test-stream", StreamPosition.START, 1);
             List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
             while (!page.isEnd()) {
-                page = page.readNext();
+                page = page.readNext().get();
                 all.addAll(Arrays.asList(page.getMessages()));
             }
 
