@@ -56,7 +56,7 @@ class ReadEventStreamFowardTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            ReadStreamPage read = es.readStreamForwards("test-stream", 0, 1);
+            ReadStreamPage read = es.readStreamForwards("test-stream", 0, 1).get();
 
             assertEquals(PageReadStatus.STREAM_NOT_FOUND, read.getStatus());
         }
@@ -82,9 +82,9 @@ class ReadEventStreamFowardTests extends TestFixture {
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             // ExpectedVersion.EmptyStream
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, 10, 1);
+            ReadStreamPage read = es.readStreamForwards(stream, 10, 1).get();
 
             assertEquals(0, read.getMessages().length);
         }
@@ -98,9 +98,9 @@ class ReadEventStreamFowardTests extends TestFixture {
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             // ExpectedVersion.EmptyStream
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, 4, 5);
+            ReadStreamPage read = es.readStreamForwards(stream, 4, 5).get();
 
             assertEquals(1, read.getMessages().length);
         }
@@ -113,9 +113,9 @@ class ReadEventStreamFowardTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, 0, messages.length);
+            ReadStreamPage read = es.readStreamForwards(stream, 0, messages.length).get();
             
             assertEventDataEqual(messages, read.getMessages());
         }
@@ -128,9 +128,9 @@ class ReadEventStreamFowardTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, 4, 1);
+            ReadStreamPage read = es.readStreamForwards(stream, 4, 1).get();
 
             assertEventDataEqual(messages[4], read.getMessages()[0]);
         }
@@ -143,9 +143,9 @@ class ReadEventStreamFowardTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, 3, 2);
+            ReadStreamPage read = es.readStreamForwards(stream, 3, 2).get();
 
             // TODO: use a comparator something like EventDataComparer
             assertEquals(2, read.getMessages().length);
@@ -159,9 +159,9 @@ class ReadEventStreamFowardTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage read = es.readStreamForwards(stream, StreamPosition.END, 1);
+            ReadStreamPage read = es.readStreamForwards(stream, StreamPosition.END, 1).get();
 
             TestHelpers.assertEventDataEqual(messages[4], read.getMessages()[0]);
         }
@@ -173,14 +173,14 @@ class ReadEventStreamFowardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
             Long position = StreamPosition.START;
             ReadStreamPage page;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readStreamForwards("test-stream", position, 1);
+                page = es.readStreamForwards("test-stream", position, 1).get();
                 all.addAll(Arrays.asList(page.getMessages()));
                 position = page.getNextStreamVersion();
                 atEnd = page.isEnd();
@@ -196,14 +196,14 @@ class ReadEventStreamFowardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
             Long position = StreamPosition.START;
             ReadStreamPage page;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readStreamForwards("test-stream", position, 5);
+                page = es.readStreamForwards("test-stream", position, 5).get();
                 all.addAll(Arrays.asList(page.getMessages()));
                 position = page.getNextStreamVersion();
                 atEnd = page.isEnd();
@@ -220,9 +220,9 @@ class ReadEventStreamFowardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadStreamPage page = es.readStreamForwards("test-stream", StreamPosition.START, 1);
+            ReadStreamPage page = es.readStreamForwards("test-stream", StreamPosition.START, 1).get();
             List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
             while (!page.isEnd()) {
                 page = page.readNext().get();

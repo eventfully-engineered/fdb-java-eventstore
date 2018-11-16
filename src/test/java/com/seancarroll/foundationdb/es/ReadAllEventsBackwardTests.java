@@ -31,9 +31,9 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.START, 1);
+            ReadAllPage read = es.readAllBackwards(Position.START, 1).get();
 
             assertTrue(read.isEnd());
             assertEquals(1, read.getMessages().length);
@@ -47,9 +47,9 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, messages.length);
+            ReadAllPage read = es.readAllBackwards(Position.END, messages.length).get();
 
             ArrayUtils.reverse(messages);
             TestHelpers.assertEventDataEqual(messages, read.getMessages());
@@ -62,14 +62,14 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
             Versionstamp position = Position.END;
             ReadAllPage page;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readAllBackwards(position, 1);
+                page = es.readAllBackwards(position, 1).get();
                 all.addAll(Arrays.asList(page.getMessages()));
                 position = page.getNextPosition();
                 atEnd = page.isEnd();
@@ -87,14 +87,14 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
             Versionstamp position = Position.END;
             ReadAllPage page;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readAllBackwards(position, 5);
+                page = es.readAllBackwards(position, 5).get();
                 all.addAll(Arrays.asList(page.getMessages()));
                 position = page.getNextPosition();
                 atEnd = page.isEnd();
@@ -112,9 +112,9 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage page = es.readAllBackwards(Position.END, 1);
+            ReadAllPage page = es.readAllBackwards(Position.END, 1).get();
             List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
             while (!page.isEnd()) {
                 page = page.readNext().get();
@@ -133,9 +133,9 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, 10);
+            ReadAllPage read = es.readAllBackwards(Position.END, 10).get();
 
             ArrayUtils.reverse(messages);
             assertTrue(read.getMessages().length < 10);
@@ -158,10 +158,10 @@ class ReadAllEventsBackwardTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
-            es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
-            es.appendToStream("test-stream2", ExpectedVersion.ANY, messages);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
+            es.appendToStream("test-stream2", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, 4);
+            ReadAllPage read = es.readAllBackwards(Position.END, 4).get();
 
             assertEquals(4, read.getMessages().length);
             assertTrue(read.isEnd());

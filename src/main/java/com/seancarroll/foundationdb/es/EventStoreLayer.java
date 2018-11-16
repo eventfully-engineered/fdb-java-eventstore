@@ -68,12 +68,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public AppendResult appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) throws InterruptedException, ExecutionException {
-        return appendToStreamAsync(streamId, expectedVersion, messages).get();
-    }
-
-    @Override
-    public CompletableFuture<AppendResult> appendToStreamAsync(String streamId, long expectedVersion, NewStreamMessage... messages) {
+    public CompletableFuture<AppendResult> appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) {
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
         }
@@ -232,22 +227,12 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException {
-        return readAllForwardsAsync(fromPositionInclusive, maxCount).get();
-    }
-
-    @Override
-    public CompletableFuture<ReadAllPage> readAllForwardsAsync(Versionstamp fromPositionInclusive, int maxCount) {
+    public CompletableFuture<ReadAllPage> readAllForwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllForwardInternal(fromPositionInclusive, maxCount);
     }
 
     @Override
-    public ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException {
-        return readAllBackwardsAsync(fromPositionInclusive, maxCount).get();
-    }
-
-    @Override
-    public CompletableFuture<ReadAllPage> readAllBackwardsAsync(Versionstamp fromPositionInclusive, int maxCount) {
+    public CompletableFuture<ReadAllPage> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllBackwardInternal(fromPositionInclusive, maxCount);
     }
 
@@ -408,12 +393,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadStreamPage readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
-        return readStreamForwardsAsync(streamId, fromVersionInclusive, maxCount).get();
-    }
-
-    @Override
-    public CompletableFuture<ReadStreamPage> readStreamForwardsAsync(String streamId, long fromVersionInclusive, int maxCount) {
+    public CompletableFuture<ReadStreamPage> readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamForwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
     }
 
@@ -495,12 +475,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadStreamPage readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) throws ExecutionException, InterruptedException {
-        return readStreamBackwardsAsync(streamId, fromVersionInclusive, maxCount).get();
-    }
-
-    @Override
-    public CompletableFuture<ReadStreamPage> readStreamBackwardsAsync(String streamId, long fromVersionInclusive, int maxCount) {
+    public CompletableFuture<ReadStreamPage> readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamBackwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
     }
 
@@ -578,28 +553,24 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public Versionstamp readHeadPosition() throws ExecutionException, InterruptedException {
+    public CompletableFuture<Versionstamp> readHeadPosition() {
         Subspace globalSubspace = getGlobalSubspace();
 
-        byte[] k = database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end))).get();
+        return database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end))).thenApply(k -> {
+            if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
+                return null;
+            }
 
-        if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
-            return null;
-        }
+            Tuple t = globalSubspace.unpack(k);
+            // TODO: can this ever be null?
+            if (t == null) {
+                // TODO: custom exception
+                throw new RuntimeException("failed to unpack key");
+            }
 
-        Tuple t = globalSubspace.unpack(k);
-        // TODO: can this ever be null?
-        if (t == null) {
-            // TODO: custom exception
-            throw new RuntimeException("failed to unpack key");
-        }
+            return t.getVersionstamp(0);
+        });
 
-        return t.getVersionstamp(0);
-    }
-
-    @Override
-    public CompletableFuture<Versionstamp> readHeadPositionAsync() {
-        return null;
     }
 
     @Override
@@ -608,12 +579,7 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException {
-        return readEventAsync(stream, eventNumber).get();
-    }
-
-    @Override
-    public CompletableFuture<ReadEventResult> readEventAsync(String stream, long eventNumber) {
+    public CompletableFuture<ReadEventResult> readEvent(String stream, long eventNumber) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(stream));
         Preconditions.checkArgument(eventNumber >= -1);
 
