@@ -1,9 +1,13 @@
 language: java
-sudo: false
 jdk:
   - openjdk8
 cache:
     directories:
       - $HOME/.m2
+services:
+  - docker
+install:
+  - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-clients_6.0.15-1_amd64.deb
+  - sudo dpkg -i foundationdb-clients_6.0.15-1_amd64.deb
 
 script: mvn verify
