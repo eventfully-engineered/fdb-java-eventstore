@@ -1,6 +1,9 @@
-# fdb-java-es
+# fdb-java-es 
+
+[![Build Status](https://travis-ci.org/seancarroll/fdb-java-es.svg?branch=master)](https://travis-ci.org/seancarroll/fdb-java-es)
 
 An event store layer build on top of FoundationDB
+
 
 ## Layout
 
