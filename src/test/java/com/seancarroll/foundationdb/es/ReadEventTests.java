@@ -52,7 +52,7 @@ class ReadEventTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            ReadEventResult read = es.readEvent("test-stream", 1);
+            ReadEventResult read = es.readEvent("test-stream", 1).get();
 
             assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
             assertNull(read.getEvent());
@@ -66,7 +66,7 @@ class ReadEventTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            ReadEventResult read = es.readEvent("test-stream", 1);
+            ReadEventResult read = es.readEvent("test-stream", 1).get();
 
             assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
         }
@@ -84,9 +84,9 @@ class ReadEventTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadEventResult read = es.readEvent(stream, 10);
+            ReadEventResult read = es.readEvent(stream, 10).get();
 
             assertEquals(ReadEventStatus.NOT_FOUND, read.getStatus());
             assertNull(read.getEvent());
@@ -102,9 +102,9 @@ class ReadEventTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadEventResult read = es.readEvent(stream, 2);
+            ReadEventResult read = es.readEvent(stream, 2).get();
 
             assertEquals(ReadEventStatus.SUCCESS, read.getStatus());
             // Assert.AreEqual(res.Event.Value.OriginalEvent.EventId, _eventId0);
@@ -129,9 +129,9 @@ class ReadEventTests extends TestFixture {
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream(stream, ExpectedVersion.ANY, messages);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadEventResult read = es.readEvent(stream, -1);
+            ReadEventResult read = es.readEvent(stream, -1).get();
 
             TestHelpers.assertEventDataEqual(messages[4], read.getEvent());
         }

@@ -2,7 +2,7 @@ package com.seancarroll.foundationdb.es;
 
 import com.google.common.base.MoreObjects;
 
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * From SqlStreamStore
@@ -136,7 +136,8 @@ public class ReadStreamPage {
         return isEnd;
     }
 
-    public ReadStreamPage readNext() throws ExecutionException, InterruptedException {
+    public CompletableFuture<ReadStreamPage> readNext() {
+        // TODO: should this just return a ReadNextStreamPage instead?
         return readNext.get(nextStreamVersion);
     }
 

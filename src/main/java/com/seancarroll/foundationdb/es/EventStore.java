@@ -3,7 +3,7 @@ package com.seancarroll.foundationdb.es;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  *
@@ -17,9 +17,9 @@ public interface EventStore {
      * @param messages
      * @return
      */
-    AppendResult appendToStream(String streamId,
-                                long expectedVersion,
-                                NewStreamMessage... messages) throws InterruptedException, ExecutionException;
+    CompletableFuture<AppendResult> appendToStream(String streamId,
+                                                       long expectedVersion,
+                                                       NewStreamMessage... messages);
 
     /**
      *
@@ -27,7 +27,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllForwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException;
+    CompletableFuture<ReadAllPage> readAllForwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -35,7 +35,7 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadAllPage readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) throws InterruptedException, ExecutionException;
+    CompletableFuture<ReadAllPage> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
@@ -44,9 +44,9 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadStreamPage readStreamForwards(String streamId,
+    CompletableFuture<ReadStreamPage> readStreamForwards(String streamId,
                                       long fromVersionInclusive,
-                                      int maxCount) throws InterruptedException, ExecutionException;
+                                      int maxCount);
 
     /**
      *
@@ -55,19 +55,18 @@ public interface EventStore {
      * @param maxCount maximum number of events to read
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    ReadStreamPage readStreamBackwards(String streamId,
+    CompletableFuture<ReadStreamPage> readStreamBackwards(String streamId,
                                        long fromVersionInclusive,
-                                       int maxCount) throws InterruptedException, ExecutionException;
+                                       int maxCount);
 
-
-    ReadEventResult readEvent(String stream, long eventNumber) throws ExecutionException, InterruptedException;
+    CompletableFuture<ReadEventResult> readEvent(String stream, long eventNumber);
 
     /**
      * TODO: Do we need this? Does readAllBackwards with Position.END handle this well enough?
      * Reads the head position (the position of the very latest message) in the {@link EventStoreSubspaces#GLOBAL} subspace.
      * @return the head position
      */
-    Versionstamp readHeadPosition() throws ExecutionException, InterruptedException;
+    CompletableFuture<Versionstamp> readHeadPosition();
 
     /**
      *

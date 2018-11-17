@@ -1,6 +1,6 @@
 package com.seancarroll.foundationdb.es;
 
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  *
@@ -14,5 +14,5 @@ public interface ReadNextStreamPage {
      * @param nextVersion
      * @return
      */
-    ReadStreamPage get(long nextVersion) throws InterruptedException, ExecutionException;
+    CompletableFuture<ReadStreamPage> get(long nextVersion);
 }

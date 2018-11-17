@@ -35,9 +35,9 @@ class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
-            assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
+            assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
 
-            ReadStreamPage read = es.readStreamForwards(stream, 0, 2);
+            ReadStreamPage read = es.readStreamForwards(stream, 0, 2).get();
             assertEquals(1, read.getMessages().length);
         }
     }
@@ -48,9 +48,9 @@ class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             String stream = "test-stream";
-            assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
+            assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).get().getCurrentVersion());
 
-            ReadStreamPage read = es.readStreamForwards(stream, 0, 2);
+            ReadStreamPage read = es.readStreamForwards(stream, 0, 2).get();
             assertEquals(1, read.getMessages().length);
         }
     }
@@ -68,7 +68,7 @@ class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages).get();
 
             assertNotNull(appendResult.getCurrentPosition());
             assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
@@ -95,8 +95,8 @@ class AppendToStreamTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
-            assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).getCurrentVersion());
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
+            assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).get().getCurrentVersion());
         }
     }
 
@@ -105,8 +105,17 @@ class AppendToStreamTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).getCurrentVersion());
-            assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
+            // TODO: is there a way to have WrongExpectedVersionException bubble up instead of being wrapped in an ExecutionException?
+            // What is the standard practice for this?
+            //assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
+            try {
+                es.appendToStream("test-stream", 1, createNewStreamMessage()).get();
+            } catch (ExecutionException ex) {
+                assertEquals(WrongExpectedVersionException.class, ex.getCause().getClass());
+            } catch (Exception ex) {
+                fail("wrong exception was thrown", ex);
+            }
         }
     }
 
@@ -124,7 +133,7 @@ class AppendToStreamTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages);
+            AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             assertEquals(4, appendResult.getCurrentVersion());
             // TODO: nextExpectedVersion?

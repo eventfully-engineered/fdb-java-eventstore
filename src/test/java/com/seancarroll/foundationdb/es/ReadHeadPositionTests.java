@@ -26,7 +26,7 @@ class ReadHeadPositionTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
-            Versionstamp headPosition = es.readHeadPosition();
+            Versionstamp headPosition = es.readHeadPosition().get();
 
             assertNull(headPosition);
         }
@@ -38,9 +38,9 @@ class ReadHeadPositionTests extends TestFixture {
             EventStoreLayer es = EventStoreLayer.getDefault(db);
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
-            es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages);
+            es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages).get();
 
-            Versionstamp headPosition = es.readHeadPosition();
+            Versionstamp headPosition = es.readHeadPosition().get();
 
             assertEquals(-1, Position.START.compareTo(headPosition));
         }

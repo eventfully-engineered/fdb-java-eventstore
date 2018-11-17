@@ -49,6 +49,10 @@ Create EventStoreLayer
 EventStoreLayer es = new EventStoreLayer(db, eventStoreSubspace);
 ```
 
+Create EventStoreLayer with default "es" DirectorySubspace 
+```
+EventStoreLayer es = EventStoreLayer.getDefault(db);
+```
 
 ### Append
 

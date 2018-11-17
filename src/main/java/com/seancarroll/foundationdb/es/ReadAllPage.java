@@ -3,7 +3,7 @@ package com.seancarroll.foundationdb.es;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.base.MoreObjects;
 
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This is from SqlStreamStore
@@ -67,7 +67,7 @@ public class ReadAllPage {
      * Reads the next page
      * @return
      */
-    public ReadAllPage readNext() throws ExecutionException, InterruptedException {
+    public CompletableFuture<ReadAllPage> readNext() {
         return readNext.get(nextPosition);
     }
 
