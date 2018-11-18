@@ -197,12 +197,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <excludes>
-                                <!--<exclude>io/dropwizard/benchmarks/**/*.class</exclude>-->
-                                <exclude>org/openjdk/jmh/**/*.class</exclude>
-                            </excludes>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
