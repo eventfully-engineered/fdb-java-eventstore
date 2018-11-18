@@ -1,0 +1,19 @@
+language: java
+jdk:
+  - openjdk8
+cache:
+    directories:
+      - $HOME/.m2
+services:
+  - docker
+install:
+  - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-clients_6.0.15-1_amd64.deb
+  - sudo dpkg -i foundationdb-clients_6.0.15-1_amd64.deb
+  - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-server_6.0.15-1_amd64.deb
+  - sudo dpkg -i foundationdb-server_6.0.15-1_amd64.deb
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+#  - snyk monitor
+
+script: mvn verify -P code-coverage
