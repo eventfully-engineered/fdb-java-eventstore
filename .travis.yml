@@ -14,5 +14,6 @@ install:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+#  - snyk monitor
 
 script: mvn verify -P code-coverage
