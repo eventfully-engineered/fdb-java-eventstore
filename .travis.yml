@@ -29,7 +29,7 @@ before_script:
 script: mvn verify -P code-coverage
 
 after_script:
-- ./cc-test-reporter format-coverage -d -t jacoco ./target/jacoco-ut/jacoco.xml
+- ./cc-test-reporter format-coverage -d -t jacoco ./target/site/jacoco/jacoco.xml
 - ./cc-test-reporter upload-coverage -d
 
 after_success:
