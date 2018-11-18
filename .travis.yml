@@ -1,19 +1,40 @@
 language: java
 jdk:
   - openjdk8
+
+addons:
+  sonarcloud:
+    organization: "seancarroll-github"
+    token:
+        secure: ${SONAR_TOKEN}
+
 cache:
     directories:
       - $HOME/.m2
+
 services:
   - docker
+
 install:
   - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-clients_6.0.15-1_amd64.deb
   - sudo dpkg -i foundationdb-clients_6.0.15-1_amd64.deb
   - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-server_6.0.15-1_amd64.deb
   - sudo dpkg -i foundationdb-server_6.0.15-1_amd64.deb
 
+before_script:
+- curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+- chmod +x ./cc-test-reporter
+- ./cc-test-reporter before-build
+
+script: mvn verify -P code-coverage
+
+after_script:
+- ./cc-test-reporter format-coverage -d -t jacoco ./target/jacoco-ut/jacoco.xml
+- ./cc-test-reporter upload-coverage -d
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 #  - snyk monitor
 
-script: mvn verify -P code-coverage
+
+
