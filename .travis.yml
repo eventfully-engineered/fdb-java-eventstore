@@ -12,4 +12,7 @@ install:
   - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-server_6.0.15-1_amd64.deb
   - sudo dpkg -i foundationdb-server_6.0.15-1_amd64.deb
 
-script: mvn verify
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+script: mvn verify -P code-coverage
