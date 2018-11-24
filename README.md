@@ -14,7 +14,9 @@ Data is stored in two separate subspaces
 Globally ordered based time  
 Global / [versionstamp] /
 
-Value is pointer to an event in the stream subspace stored in the format of <event number>@<stream id>
+Global subspace tuple value is a pointer to an event in the stream subspace stored in the format of `<event number>@<stream id>`. 
+When reading from the global subspace via the `readAll*` methods we resolve the pointer and return the message from the 
+stream subspace
                 
 
 ### Stream Subspace
