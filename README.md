@@ -11,16 +11,12 @@ Data is stored in two separate subspaces
 
 ### Global Subspace
 
-globally ordered based time  
+Globally ordered based time  
 Global / [versionstamp] /
 
-* message Id
-* stream id 
-* message type, 
-* message data 
-* message metadata 
-* event number
-* created Date (UTC from epoch)
+Global subspace tuple value is a pointer to an event in the stream subspace stored in the format of `<event number>@<stream id>`. 
+When reading from the global subspace via the `readAll*` methods we resolve the pointer and return the message from the 
+stream subspace
                 
 
 ### Stream Subspace
