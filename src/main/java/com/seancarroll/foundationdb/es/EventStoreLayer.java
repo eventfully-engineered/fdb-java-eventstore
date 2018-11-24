@@ -156,15 +156,6 @@ public class EventStoreLayer implements EventStore {
             return trVersionFuture
                 .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
                 .thenApply(completedVersion -> new AppendResult(messages.length - 1, completedVersion));
-        }).handle((result, exception) -> {
-            if (result != null) {
-                return result;
-            }
-            if (exception != null && WrongExpectedVersionException.class.equals(exception.getCause().getClass())) {
-                throw new WrongExpectedVersionException(exception.getCause().getMessage());
-            } else {
-                throw new RuntimeException(exception);
-            }
         });
 
     }
