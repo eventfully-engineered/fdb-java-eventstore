@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 /**
  *
@@ -264,7 +263,6 @@ public class EventStoreLayer implements EventStore {
 
         ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
 
-
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
                 return CompletableFuture.supplyAsync(() -> new ReadAllPage(
@@ -277,25 +275,21 @@ public class EventStoreLayer implements EventStore {
             }
 
             int limit = Math.min(maxCount, keyValues.size());
-
-            // TODO: This doesn't seem like the optimal way of doing this
-            // There must be a better way to do this
             List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
-            for (KeyValue kv : keyValues) {
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-                String pointer = tupleValue.getString(0);
-                String[] pointerParts = splitOnLastOccurrence(pointer, POINTER_DELIMITER);
+            for (int i = 0; i < limit; i++) {
+                KeyValue kv = keyValues.get(i);
+                String value = Tuple.fromBytes(kv.getValue()).getString(0);
+                String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
                 completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
             }
 
-            // https://jensonjava.wordpress.com/2017/11/16/convert-listcompletablefuture-to-completablefuturelist/
+            // TODO: will this block?
+            // TODO: run benchmark between what we have and using CompletableFuture.allOf
             // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
-            List<ReadEventResult> readEventsResults = completableFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
-
-            StreamMessage[] messages = new StreamMessage[limit];
-            for (int i = 0; i < limit; i++) {
-                messages[i] = readEventsResults.get(i).getEvent();
-            }
+            StreamMessage[] messages = completableFutures.stream()
+                .map(CompletableFuture::join)
+                .map(result -> result.getEvent())
+                .toArray(size -> new StreamMessage[completableFutures.size()]);
 
             // if we are at the end return next position as null otherwise
             // grab it from the last item from the range query which is outside the slice we want
@@ -313,11 +307,6 @@ public class EventStoreLayer implements EventStore {
                 messages));
         });
 
-    }
-
-    private static String[] splitOnLastOccurrence(String s, String c) {
-        int lastIndexOf = s.lastIndexOf(c);
-        return new String[] {s.substring(0, lastIndexOf), s.substring(lastIndexOf + 1) };
     }
 
     private CompletableFuture<ReadAllPage> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
@@ -365,42 +354,44 @@ public class EventStoreLayer implements EventStore {
             }
 
             int limit = Math.min(maxCount, keyValues.size());
-
-            // TODO: This doesn't seem like the optimal way of doing this
-            // There must be a better way to do this
             List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
-            for (KeyValue kv : keyValues) {
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-                String pointer = tupleValue.getString(0);
-                String[] pointerParts = splitOnLastOccurrence(pointer, POINTER_DELIMITER);
+            for (int i = 0; i < limit; i++) {
+                KeyValue kv = keyValues.get(i);
+                String value = Tuple.fromBytes(kv.getValue()).getString(0);
+                String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
                 completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
             }
 
-            // https://jensonjava.wordpress.com/2017/11/16/convert-listcompletablefuture-to-completablefuturelist/
+            // TODO: will this block?
+            // TODO: run benchmark between what we have and using CompletableFuture.allOf
             // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
-            List<ReadEventResult> readEventsResults = completableFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+            StreamMessage[] messages = completableFutures.stream()
+                .map(CompletableFuture::join)
+                .map(result -> result.getEvent())
+                .toArray(size -> new StreamMessage[completableFutures.size()]);
 
-            StreamMessage[] messages = new StreamMessage[limit];
-            for (int i = 0; i < limit; i++) {
-                messages[i] = readEventsResults.get(i).getEvent();
-            }
+                // if we are at the end return next position as null otherwise
+                // grab it from the last item from the range query which is outside the slice we want
+                // TODO: Review / fix this.
+                Versionstamp nextPosition = maxCount >= keyValues.size()
+                    ? null
+                    : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-            // if we are at the end return next position as null otherwise
-            // grab it from the last item from the range query which is outside the slice we want
-            // TODO: Review / fix this.
-            Versionstamp nextPosition = maxCount >= keyValues.size()
-                ? null
-                : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
+                return CompletableFuture.supplyAsync(() -> new ReadAllPage(
+                    fromPositionInclusive,
+                    nextPosition,
+                    maxCount >= keyValues.size(),
+                    ReadDirection.BACKWARD,
+                    readNext,
+                    messages));
 
-            return CompletableFuture.supplyAsync(() -> new ReadAllPage(
-                fromPositionInclusive,
-                nextPosition,
-                maxCount >= keyValues.size(),
-                ReadDirection.BACKWARD,
-                readNext,
-                messages));
         });
 
+    }
+
+    private static String[] splitOnLastOccurrence(String s, String c) {
+        int lastIndexOf = s.lastIndexOf(c);
+        return new String[] {s.substring(0, lastIndexOf), s.substring(lastIndexOf + 1) };
     }
 
     @Override
