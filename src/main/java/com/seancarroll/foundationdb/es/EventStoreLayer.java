@@ -13,13 +13,11 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -29,6 +27,7 @@ public class EventStoreLayer implements EventStore {
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
 
     public static final int MAX_READ_SIZE = 4096;
+    private static final String POINTER_DELIMITER = "@";
 
     private final Database database;
     private final DirectorySubspace esSubspace;
@@ -107,10 +106,11 @@ public class EventStoreLayer implements EventStore {
 
                     // TODO: should this be outside the loop? does it matter?
                     long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
                     Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
+
+                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
                 return tr.getVersionstamp();
@@ -144,10 +144,11 @@ public class EventStoreLayer implements EventStore {
 
                     NewStreamMessage message = messages[i];
                     long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), i, createdDateUtcEpoch);
                     Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), i, createdDateUtcEpoch, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
+
+                    Tuple globalSubspaceValue = Tuple.from(i + POINTER_DELIMITER + streamId.getOriginalId());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
                 return tr.getVersionstamp();
@@ -192,10 +193,12 @@ public class EventStoreLayer implements EventStore {
 
                     long createdDateUtcEpoch = Instant.now().toEpochMilli();
                     NewStreamMessage message = messages[i];
-                    Tuple globalSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch);
+
                     Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
+
+                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
+                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
                 return tr.getVersionstamp();
@@ -261,6 +264,7 @@ public class EventStoreLayer implements EventStore {
 
         ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
 
+
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
                 return CompletableFuture.supplyAsync(() -> new ReadAllPage(
@@ -273,23 +277,24 @@ public class EventStoreLayer implements EventStore {
             }
 
             int limit = Math.min(maxCount, keyValues.size());
+
+            // TODO: This doesn't seem like the optimal way of doing this
+            // There must be a better way to do this
+            List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
+            for (KeyValue kv : keyValues) {
+                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
+                String pointer = tupleValue.getString(0);
+                String[] pointerParts = splitOnLastOccurrence(pointer, POINTER_DELIMITER);
+                completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
+            }
+
+            // https://jensonjava.wordpress.com/2017/11/16/convert-listcompletablefuture-to-completablefuturelist/
+            // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
+            List<ReadEventResult> readEventsResults = completableFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+
             StreamMessage[] messages = new StreamMessage[limit];
             for (int i = 0; i < limit; i++) {
-                KeyValue kv = keyValues.get(i);
-                Tuple key = globalSubspace.unpack(kv.getKey());
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-
-                StreamMessage message = new StreamMessage(
-                    tupleValue.getString(1),
-                    tupleValue.getUUID(0),
-                    tupleValue.getLong(5),
-                    key.getVersionstamp(0),
-                    tupleValue.getLong(6),
-                    tupleValue.getString(2),
-                    tupleValue.getBytes(4),
-                    tupleValue.getBytes(3)
-                );
-                messages[i] = message;
+                messages[i] = readEventsResults.get(i).getEvent();
             }
 
             // if we are at the end return next position as null otherwise
@@ -308,6 +313,11 @@ public class EventStoreLayer implements EventStore {
                 messages));
         });
 
+    }
+
+    private static String[] splitOnLastOccurrence(String s, String c) {
+        int lastIndexOf = s.lastIndexOf(c);
+        return new String[] {s.substring(0, lastIndexOf), s.substring(lastIndexOf + 1) };
     }
 
     private CompletableFuture<ReadAllPage> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
@@ -355,23 +365,24 @@ public class EventStoreLayer implements EventStore {
             }
 
             int limit = Math.min(maxCount, keyValues.size());
+
+            // TODO: This doesn't seem like the optimal way of doing this
+            // There must be a better way to do this
+            List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
+            for (KeyValue kv : keyValues) {
+                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
+                String pointer = tupleValue.getString(0);
+                String[] pointerParts = splitOnLastOccurrence(pointer, POINTER_DELIMITER);
+                completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
+            }
+
+            // https://jensonjava.wordpress.com/2017/11/16/convert-listcompletablefuture-to-completablefuturelist/
+            // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
+            List<ReadEventResult> readEventsResults = completableFutures.stream().map(CompletableFuture::join).collect(Collectors.toList());
+
             StreamMessage[] messages = new StreamMessage[limit];
             for (int i = 0; i < limit; i++) {
-                KeyValue kv = keyValues.get(i);
-                Tuple key = globalSubspace.unpack(kv.getKey());
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-
-                StreamMessage message = new StreamMessage(
-                    tupleValue.getString(1),
-                    tupleValue.getUUID(0),
-                    tupleValue.getLong(5),
-                    key.getVersionstamp(0),
-                    tupleValue.getLong(6),
-                    tupleValue.getString(2),
-                    tupleValue.getBytes(4),
-                    tupleValue.getBytes(3)
-                );
-                messages[i] = message;
+                messages[i] = readEventsResults.get(i).getEvent();
             }
 
             // if we are at the end return next position as null otherwise
