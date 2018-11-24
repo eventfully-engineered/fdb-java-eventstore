@@ -111,6 +111,7 @@ class AppendToStreamTests extends TestFixture {
             //assertThrows(WrongExpectedVersionException.class, () -> es.appendToStream("test-stream", 1, createNewStreamMessage()));
             try {
                 es.appendToStream("test-stream", 1, createNewStreamMessage()).get();
+                fail("should throw exception");
             } catch (ExecutionException ex) {
                 assertEquals(WrongExpectedVersionException.class, ex.getCause().getClass());
             } catch (Exception ex) {
