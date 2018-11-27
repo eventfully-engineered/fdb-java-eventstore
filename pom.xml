@@ -27,7 +27,7 @@
         <jmh.version>1.21</jmh.version>
 
         <coveralls-maven-plugin.version>4.3.0</coveralls-maven-plugin.version>
-        <dependency-check-maven.version>3.3.4</dependency-check-maven.version>
+        <dependency-check-maven.version>4.0.0</dependency-check-maven.version>
         <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
         <maven-clean-plugin.version>3.1.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
@@ -45,7 +45,7 @@
         <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
         <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
         <sonar-maven-plugin.version>3.5.0.1254</sonar-maven-plugin.version>
-        <spotbugs-maven-plugin.version>3.1.7</spotbugs-maven-plugin.version>
+        <spotbugs-maven-plugin.version>3.1.8</spotbugs-maven-plugin.version>
     </properties>
 
     <scm>
