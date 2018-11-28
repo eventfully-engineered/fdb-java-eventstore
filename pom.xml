@@ -79,13 +79,6 @@
             <version>${slf4j.version}</version>
         </dependency>
 
-        <!--TODO: I dont think I need this-->
-        <dependency>
-            <groupId>com.fasterxml.uuid</groupId>
-            <artifactId>java-uuid-generator</artifactId>
-            <version>${uuid.generator.version}</version>
-        </dependency>
-
         <!--TODO: probably should avoid bringing in this dependency as we dont use a ton of functionality-->
         <dependency>
             <groupId>org.apache.commons</groupId>
