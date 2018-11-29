@@ -1,3 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+    <suppress>
+        <cve>CVE-2010-0538</cve>
+        <notes><![CDATA[false positive, CVE concerns the ability for remote attachers to execute arbitrary code via a
+        crafted applet on Apple Java for Mac OS X, relatedto the com.sun.medialib.mlib package.]]>
+        </notes>
+    </suppress>
 </suppressions>
