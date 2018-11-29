@@ -213,6 +213,19 @@
                     <groupId>org.owasp</groupId>
                     <artifactId>dependency-check-maven</artifactId>
                     <version>${dependency-check-maven.version}</version>
+                    <configuration>
+                        <failBuildOnAnyVulnerability>true</failBuildOnAnyVulnerability>
+                        <showSummary>true</showSummary>
+                        <suppressionFiles>suppressed-cves.xml</suppressionFiles>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>security-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
