@@ -14,6 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <commons-lang3.version>3.7</commons-lang3.version>
         <foundationdb.version>5.2.5</foundationdb.version>
         <guava.version>27.0-jre</guava.version>
         <log4j.version>2.11.1</log4j.version>
@@ -79,11 +80,11 @@
             <version>${slf4j.version}</version>
         </dependency>
 
-        <!--TODO: probably should avoid bringing in this dependency as we dont use a ton of functionality-->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.7</version>
+            <version>${commons-lang3.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
