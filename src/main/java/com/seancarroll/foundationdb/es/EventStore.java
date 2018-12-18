@@ -18,8 +18,8 @@ public interface EventStore {
      * @return
      */
     CompletableFuture<AppendResult> appendToStream(String streamId,
-                                                       long expectedVersion,
-                                                       NewStreamMessage... messages);
+                                                   long expectedVersion,
+                                                   NewStreamMessage... messages);
 
     /**
      *
@@ -45,8 +45,8 @@ public interface EventStore {
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     CompletableFuture<ReadStreamPage> readStreamForwards(String streamId,
-                                      long fromVersionInclusive,
-                                      int maxCount);
+                                                         long fromVersionInclusive,
+                                                         int maxCount);
 
     /**
      *
@@ -56,8 +56,8 @@ public interface EventStore {
      * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
     CompletableFuture<ReadStreamPage> readStreamBackwards(String streamId,
-                                       long fromVersionInclusive,
-                                       int maxCount);
+                                                          long fromVersionInclusive,
+                                                          int maxCount);
 
     CompletableFuture<ReadEventResult> readEvent(String stream, long eventNumber);
 
