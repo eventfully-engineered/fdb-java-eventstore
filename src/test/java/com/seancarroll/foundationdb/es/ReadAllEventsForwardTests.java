@@ -21,7 +21,7 @@ class ReadAllEventsForwardTests extends TestFixture {
 
     @BeforeEach
     void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(520);
+        fdb = FDB.selectAPIVersion(600);
         TestHelpers.clean(fdb);
     }
 

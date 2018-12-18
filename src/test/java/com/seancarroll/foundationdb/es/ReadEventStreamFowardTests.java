@@ -20,7 +20,7 @@ class ReadEventStreamFowardTests extends TestFixture {
 
     @BeforeEach
     void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(520);
+        fdb = FDB.selectAPIVersion(600);
         TestHelpers.clean(fdb);
     }
 
@@ -222,11 +222,11 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
+            List<StreamMessage> all = new ArrayList<>();
             ReadStreamPage page = es.readStreamForwards("test-stream", StreamPosition.START, 1).get();
-            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
-            while (!page.isEnd()) {
-                page = page.readNext().get();
+            while (page.getMessages().length > 0 || !page.isEnd()) {
                 all.addAll(Arrays.asList(page.getMessages()));
+                page = page.readNext().get();
             }
 
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
