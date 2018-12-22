@@ -1,10 +1,8 @@
 package com.seancarroll.foundationdb.es;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static com.seancarroll.foundationdb.es.TestHelpers.byteArrayToString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class StreamMessageComparator {
 
