@@ -28,7 +28,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
@@ -44,7 +44,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -59,7 +59,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldBeAbleToReadAllOneByOneUntilEnd() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
@@ -82,7 +82,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
@@ -106,7 +106,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
@@ -126,7 +126,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
@@ -141,7 +141,8 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void shouldThrowWhenMaxCountExceedsMaxReadCount() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get()
+                ;
 
             assertThrows(IllegalArgumentException.class, () -> es.readAllForwards(Position.END, EventStoreLayer.MAX_READ_SIZE + 1));
         }
@@ -150,7 +151,7 @@ class ReadAllEventsForwardTests extends TestFixture {
     @Test
     void readAllForwardMultipleStreamTest() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();

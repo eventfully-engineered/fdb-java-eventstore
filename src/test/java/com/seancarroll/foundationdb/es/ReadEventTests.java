@@ -22,7 +22,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldThrowWhenStreamIdIsNull() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             assertThrows(IllegalArgumentException.class, () -> es.readEvent(null, 0));
         }
@@ -31,7 +31,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldThrowWhenStreamIdIsEmpty() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             assertThrows(IllegalArgumentException.class, () -> es.readEvent("", 0));
         }
@@ -40,7 +40,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldThrowWhenEventNumberIsLessThanNegativeOne() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             assertThrows(IllegalArgumentException.class, () -> es.readEvent("test-stream", -2));
         }
@@ -50,7 +50,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldNotifyUsingStatusCodeIfStreamNotFound() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             ReadEventResult read = es.readEvent("test-stream", 1).get();
 
@@ -64,7 +64,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldReturnNoStreamIfRequestedLastEventInEmptyStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             ReadEventResult read = es.readEvent("test-stream", 1).get();
 
@@ -80,7 +80,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldNotifyUsingStatusCodeWhenStreamDoesNotHaveEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -98,7 +98,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldReturnExistingEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
@@ -125,7 +125,7 @@ class ReadEventTests extends TestFixture {
     @Test
     void shouldReturnLastEventInStreamIfEventNumberIsNegativeOne() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);

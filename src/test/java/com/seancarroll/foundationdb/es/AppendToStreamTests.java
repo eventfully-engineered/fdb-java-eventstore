@@ -22,7 +22,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldNotAllowAppendingZeroEventsToStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             // TODO: verify message: messages must not be null or empty
             assertThrows(IllegalArgumentException.class, () -> es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, new NewStreamMessage[0]));
@@ -32,7 +32,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldAppendWithNoStreamExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
@@ -45,7 +45,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldAppendWithAnyExpectedVersionOnFirstWriteIfStreamDoesNotYetExist() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).get().getCurrentVersion());
@@ -65,7 +65,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldReturnPositionWithWriting() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages).get();
@@ -82,7 +82,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldAppendWithCorrectExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             String stream = "test-stream";
             es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage());
@@ -93,7 +93,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldAppendWithAnyExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
             assertEquals(1, es.appendToStream("test-stream", ExpectedVersion.ANY, createNewStreamMessage()).get().getCurrentVersion());
@@ -103,7 +103,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void shouldFailAppendingWithWrongExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
             // TODO: is there a way to have WrongExpectedVersionException bubble up instead of being wrapped in an ExecutionException?
@@ -131,7 +131,7 @@ class AppendToStreamTests extends TestFixture {
     @Test
     void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             AppendResult appendResult = es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();

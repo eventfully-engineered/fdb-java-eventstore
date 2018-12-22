@@ -14,7 +14,7 @@ class TestHelpers {
 
     static void clean(FDB fdb) throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            DirectorySubspace eventStoreSubspace = EventStoreLayer.getDefaultDirectorySubspace(db);
+            DirectorySubspace eventStoreSubspace = EventStoreLayer.getDefaultDirectorySubspace(db).get();
             db.run((Transaction tr) -> {
                 tr.clear(eventStoreSubspace.range());
                 return null;

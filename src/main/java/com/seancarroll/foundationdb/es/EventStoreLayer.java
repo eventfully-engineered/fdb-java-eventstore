@@ -49,9 +49,9 @@ public class EventStoreLayer implements EventStore {
      * @throws InterruptedException
      * @see EventStoreLayer#getDefaultDirectorySubspace
      */
-    public static EventStoreLayer getDefault(Database database) throws ExecutionException, InterruptedException {
-        DirectorySubspace esSubspace = getDefaultDirectorySubspace(database);
-        return new EventStoreLayer(database, esSubspace);
+    public static CompletableFuture<EventStoreLayer> getDefault(Database database) {
+        return getDefaultDirectorySubspace(database)
+            .thenCompose(esSubspace -> CompletableFuture.completedFuture(new EventStoreLayer(database, esSubspace)));
     }
 
     /**
@@ -61,8 +61,8 @@ public class EventStoreLayer implements EventStore {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    public static DirectorySubspace getDefaultDirectorySubspace(Database database) throws ExecutionException, InterruptedException {
-        return DirectoryLayer.getDefault().createOrOpen(database, Collections.singletonList("es")).get();
+    public static CompletableFuture<DirectorySubspace> getDefaultDirectorySubspace(Database database) {
+        return DirectoryLayer.getDefault().createOrOpen(database, Collections.singletonList("es"));
     }
 
     @Override

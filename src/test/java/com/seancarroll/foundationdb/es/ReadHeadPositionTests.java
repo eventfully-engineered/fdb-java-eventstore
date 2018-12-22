@@ -24,7 +24,7 @@ class ReadHeadPositionTests extends TestFixture {
     @Test
     void shouldReturnNullWhenNoEvents() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             Versionstamp headPosition = es.readHeadPosition().get();
 
@@ -35,7 +35,7 @@ class ReadHeadPositionTests extends TestFixture {
     @Test
     void shouldReturnHeadEvent() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
-            EventStoreLayer es = EventStoreLayer.getDefault(db);
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, messages).get();
