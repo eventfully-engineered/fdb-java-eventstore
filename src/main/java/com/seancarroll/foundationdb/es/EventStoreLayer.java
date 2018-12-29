@@ -124,16 +124,16 @@ public class EventStoreLayer implements EventStore {
 
     // TODO: clean up
     private CompletableFuture<AppendResult> appendToStreamExpectedVersionNoStream(StreamId streamId, NewStreamMessage[] messages) {
-        CompletableFuture<ReadStreamPage> backwardPageFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
+        CompletableFuture<ReadStreamSlice> backwardSliceFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
 
-        return backwardPageFuture.thenCompose(backwardPage -> {
-            if (PageReadStatus.STREAM_NOT_FOUND != backwardPage.getStatus()) {
+        return backwardSliceFuture.thenCompose(backwardSlice -> {
+            if (SliceReadStatus.STREAM_NOT_FOUND != backwardSlice.getStatus()) {
                 // ErrorMessages.AppendFailedWrongExpectedVersion
                 // $"Append failed due to WrongExpectedVersion.Stream: {streamId}, Expected version: {expectedVersion}"
                 throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId.getOriginalId(), StreamVersion.NONE));
             }
-            return CompletableFuture.completedFuture(backwardPage);
-        }).thenCompose(backwardPage -> {
+            return CompletableFuture.completedFuture(backwardSlice);
+        }).thenCompose(backwardSlice -> {
             Subspace globalSubspace = getGlobalSubspace();
             Subspace streamSubspace = getStreamSubspace(streamId);
 
@@ -220,16 +220,16 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public CompletableFuture<ReadAllPage> readAllForwards(Versionstamp fromPositionInclusive, int maxCount) {
+    public CompletableFuture<ReadAllSlice> readAllForwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllForwardInternal(fromPositionInclusive, maxCount);
     }
 
     @Override
-    public CompletableFuture<ReadAllPage> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) {
+    public CompletableFuture<ReadAllSlice> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) {
         return readAllBackwardInternal(fromPositionInclusive, maxCount);
     }
 
-    private CompletableFuture<ReadAllPage> readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
+    private CompletableFuture<ReadAllSlice> readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
         Preconditions.checkNotNull(fromPositionInclusive);
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
@@ -252,11 +252,11 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
+        ReadNextAllSlice readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadAllPage(
+                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
                     fromPositionInclusive,
                     fromPositionInclusive,
                     true,
@@ -289,7 +289,7 @@ public class EventStoreLayer implements EventStore {
                 ? null
                 : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-            return CompletableFuture.supplyAsync(() -> new ReadAllPage(
+            return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
                 fromPositionInclusive,
                 nextPosition,
                 maxCount >= keyValues.size(),
@@ -300,7 +300,7 @@ public class EventStoreLayer implements EventStore {
 
     }
 
-    private CompletableFuture<ReadAllPage> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
+    private CompletableFuture<ReadAllSlice> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
         Preconditions.checkNotNull(fromPositionInclusive);
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
@@ -331,11 +331,11 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextAllPage readNext = (Versionstamp nextPosition) -> readAllBackwardInternal(nextPosition, maxCount);
+        ReadNextAllSlice readNext = (Versionstamp nextPosition) -> readAllBackwardInternal(nextPosition, maxCount);
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadAllPage(
+                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
                     fromPositionInclusive,
                     fromPositionInclusive,
                     true,
@@ -368,7 +368,7 @@ public class EventStoreLayer implements EventStore {
                     ? null
                     : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-                return CompletableFuture.supplyAsync(() -> new ReadAllPage(
+                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
                     fromPositionInclusive,
                     nextPosition,
                     maxCount >= keyValues.size(),
@@ -386,11 +386,11 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public CompletableFuture<ReadStreamPage> readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) {
+    public CompletableFuture<ReadStreamSlice> readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamForwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
     }
 
-    private CompletableFuture<ReadStreamPage> readStreamForwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) {
+    private CompletableFuture<ReadStreamSlice> readStreamForwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) {
         Preconditions.checkNotNull(streamId);
         Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
@@ -414,13 +414,13 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextStreamPage readNext = (long nextPosition) -> readStreamForwardsInternal(streamId, nextPosition, maxCount);
+        ReadNextStreamSlice readNext = (long nextPosition) -> readStreamForwardsInternal(streamId, nextPosition, maxCount);
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadStreamPage(
+                return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
                     streamId.getOriginalId(),
-                    PageReadStatus.STREAM_NOT_FOUND,
+                    SliceReadStatus.STREAM_NOT_FOUND,
                     fromVersionInclusive,
                     StreamVersion.END,
                     StreamVersion.END,
@@ -453,9 +453,9 @@ public class EventStoreLayer implements EventStore {
             Tuple nextPositionValue = Tuple.fromBytes(keyValues.get(limit - 1).getValue());
             long nextPosition = nextPositionValue.getLong(5) + 1;
 
-            return CompletableFuture.supplyAsync(() -> new ReadStreamPage(
+            return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
                 streamId.getOriginalId(),
-                PageReadStatus.SUCCESS,
+                SliceReadStatus.SUCCESS,
                 fromVersionInclusive,
                 nextPosition,
                 0, // TODO: fix
@@ -468,11 +468,11 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public CompletableFuture<ReadStreamPage> readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) {
+    public CompletableFuture<ReadStreamSlice> readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) {
         return readStreamBackwardsInternal(new StreamId(streamId), fromVersionInclusive, maxCount);
     }
 
-    private CompletableFuture<ReadStreamPage> readStreamBackwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) {
+    private CompletableFuture<ReadStreamSlice> readStreamBackwardsInternal(StreamId streamId, long fromVersionInclusive, int maxCount) {
         Preconditions.checkNotNull(streamId);
         Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
@@ -492,13 +492,13 @@ public class EventStoreLayer implements EventStore {
                 StreamingMode.WANT_ALL).asList();
         });
 
-        ReadNextStreamPage readNext = (long nextPosition) -> readStreamBackwardsInternal(streamId, nextPosition, maxCount);
+        ReadNextStreamSlice readNext = (long nextPosition) -> readStreamBackwardsInternal(streamId, nextPosition, maxCount);
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadStreamPage(
+                return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
                     streamId.getOriginalId(),
-                    PageReadStatus.STREAM_NOT_FOUND,
+                    SliceReadStatus.STREAM_NOT_FOUND,
                     fromVersionInclusive,
                     StreamVersion.END,
                     StreamVersion.END,
@@ -531,9 +531,9 @@ public class EventStoreLayer implements EventStore {
             Tuple nextPositionValue = Tuple.fromBytes(keyValues.get(limit - 1).getValue());
             long nextPosition = nextPositionValue.getLong(5) - 1;
 
-            return CompletableFuture.supplyAsync(() -> new ReadStreamPage(
+            return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
                 streamId.getOriginalId(),
-                PageReadStatus.SUCCESS,
+                SliceReadStatus.SUCCESS,
                 fromVersionInclusive,
                 nextPosition,
                 0, // TODO: fix
@@ -583,9 +583,9 @@ public class EventStoreLayer implements EventStore {
         Subspace streamSubspace = getStreamSubspace(streamId);
 
         if (Objects.equals(eventNumber, StreamPosition.END)) {
-            CompletableFuture<ReadStreamPage> readFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
+            CompletableFuture<ReadStreamSlice> readFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
             return readFuture.thenCompose(read -> {
-                if (read.getStatus() == PageReadStatus.STREAM_NOT_FOUND) {
+                if (read.getStatus() == SliceReadStatus.STREAM_NOT_FOUND) {
                     return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
                 }
 

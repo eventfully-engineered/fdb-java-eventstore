@@ -25,39 +25,39 @@ public interface EventStore {
      *
      * @param fromPositionInclusive position to start reading from. Use Position.START to start from the beginning
      * @param maxCount maximum number of events to read
-     * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
+     * @return An @{link ReadAllSlice} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    CompletableFuture<ReadAllPage> readAllForwards(Versionstamp fromPositionInclusive, int maxCount);
+    CompletableFuture<ReadAllSlice> readAllForwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
      * @param fromPositionInclusive The position to start reading from. Use Position.END to start from the end.
      * @param maxCount maximum number of events to read
-     * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
+     * @return An @{link ReadAllSlice} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    CompletableFuture<ReadAllPage> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount);
+    CompletableFuture<ReadAllSlice> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount);
 
     /**
      *
      * @param streamId the stream id to read
      * @param fromVersionInclusive The version of the stream to start reading from. Use StreamVersion.Start to read from the start.
      * @param maxCount maximum number of events to read
-     * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
+     * @return An @{link ReadAllSlice} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    CompletableFuture<ReadStreamPage> readStreamForwards(String streamId,
-                                                         long fromVersionInclusive,
-                                                         int maxCount);
+    CompletableFuture<ReadStreamSlice> readStreamForwards(String streamId,
+                                                          long fromVersionInclusive,
+                                                          int maxCount);
 
     /**
      *
      * @param streamId the stream id to read
      * @param fromVersionInclusive The version of the stream to start reading from. Use StreamVersion.End to read from the end
      * @param maxCount maximum number of events to read
-     * @return An @{link ReadAllPage} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
+     * @return An @{link ReadAllSlice} presenting the result of the read. If all messages read have expired then the message collection MAY be empty.
      */
-    CompletableFuture<ReadStreamPage> readStreamBackwards(String streamId,
-                                                          long fromVersionInclusive,
-                                                          int maxCount);
+    CompletableFuture<ReadStreamSlice> readStreamBackwards(String streamId,
+                                                           long fromVersionInclusive,
+                                                           int maxCount);
 
     CompletableFuture<ReadEventResult> readEvent(String stream, long eventNumber);
 

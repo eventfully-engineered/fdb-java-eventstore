@@ -7,12 +7,12 @@ import java.util.concurrent.CompletableFuture;
  *
  */
 @FunctionalInterface
-public interface ReadNextStreamPage {
+public interface ReadNextStreamSlice {
 
     /**
      *
      * @param nextVersion
      * @return
      */
-    CompletableFuture<ReadStreamPage> get(long nextVersion);
+    CompletableFuture<ReadStreamSlice> get(long nextVersion);
 }

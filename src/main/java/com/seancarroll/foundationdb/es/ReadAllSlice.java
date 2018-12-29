@@ -12,20 +12,20 @@ import java.util.concurrent.CompletableFuture;
  *
  * Represents the result of a read of all streams.
  */
-public class ReadAllPage {
+public class ReadAllSlice {
 
     /**
-     * Represents the position where this page was read from
+     * Represents the position where this slice was read from
      */
     private final Versionstamp fromPosition;
 
     /**
-     * Represents the position where the next page should be read from
+     * Represents the position where the next slice should be read from
      */
     private final Versionstamp nextPosition;
 
     /**
-     * True if page reached end of the all stream at the time of reading. Otherwise false
+     * True if slice reached end of the all stream at the time of reading. Otherwise false
      */
     private final boolean isEnd;
 
@@ -34,7 +34,7 @@ public class ReadAllPage {
      */
     private final ReadDirection readDirection;
 
-    private final ReadNextAllPage readNext;
+    private final ReadNextAllSlice readNext;
 
     /**
      * The collection of {@link StreamMessage}s returned as part of the read
@@ -42,19 +42,19 @@ public class ReadAllPage {
     private final StreamMessage[] messages;
 
     /**
-     * Initializes a new instance of {@link ReadAllPage }
-     * @param fromPosition A long representing the position where this page was read from.
-     * @param nextPosition A long representing the position where the next page should be read from.
-     * @param isEnd True if page reach end of the all stream at time of reading. Otherwise false.
+     * Initializes a new instance of {@link ReadAllSlice }
+     * @param fromPosition A long representing the position where this slice was read from.
+     * @param nextPosition A long representing the position where the next slice should be read from.
+     * @param isEnd True if slice reach end of the all stream at time of reading. Otherwise false.
      * @param readDirection The direction of the the read request.
      * @param messages The collection messages read.
      */
-    public ReadAllPage(Versionstamp fromPosition,
-                       Versionstamp nextPosition,
-                       boolean isEnd,
-                       ReadDirection readDirection,
-                       ReadNextAllPage readNext,
-                       StreamMessage[] messages) {
+    public ReadAllSlice(Versionstamp fromPosition,
+                        Versionstamp nextPosition,
+                        boolean isEnd,
+                        ReadDirection readDirection,
+                        ReadNextAllSlice readNext,
+                        StreamMessage[] messages) {
         this.fromPosition = fromPosition;
         this.nextPosition = nextPosition;
         this.isEnd = isEnd;
@@ -64,10 +64,10 @@ public class ReadAllPage {
     }
 
     /**
-     * Reads the next page
+     * Reads the next slice
      * @return
      */
-    public CompletableFuture<ReadAllPage> readNext() {
+    public CompletableFuture<ReadAllSlice> readNext() {
         return readNext.get(nextPosition);
     }
 

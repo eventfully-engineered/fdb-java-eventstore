@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture;
  * EventStore has StreamEventsSlice
  * Represents the result of a read from a stream.
  */
-public class ReadStreamPage {
+public class ReadStreamSlice {
 
     /**
      * The collection of messages read
@@ -19,7 +19,7 @@ public class ReadStreamPage {
     /**
      *
      */
-    private final ReadNextStreamPage readNext;
+    private final ReadNextStreamSlice readNext;
 
     /**
      * The starting point (represented as a sequence number) of the read
@@ -51,10 +51,10 @@ public class ReadStreamPage {
     private final ReadDirection readDirection;
 
     /**
-     * The {@link PageReadStatus} of the read operation
+     * The {@link SliceReadStatus} of the read operation
      * EventStore has status property - The <see cref="SliceReadStatus"/> representing the status of this read attempt
      */
-    private final PageReadStatus status;
+    private final SliceReadStatus status;
 
     /**
      * The id (name) of the stream read.
@@ -69,7 +69,7 @@ public class ReadStreamPage {
     /**
      *
      * @param streamId - The id of the stream that was read.
-     * @param status - The {@link PageReadStatus} of the read operation.
+     * @param status - The {@link SliceReadStatus} of the read operation.
      * @param fromStreamVersion - The version of the stream that read from.
      * @param nextStreamVersion - The next message version that can be read.
      * @param lastStreamVersion - The version of the last message in the stream.
@@ -78,16 +78,16 @@ public class ReadStreamPage {
      * @param isEnd - Whether or not this is the end of the stream.
      * @param readNext - The messages read.
      */
-    public ReadStreamPage(String streamId,
-                          PageReadStatus status,
-                          long fromStreamVersion,
-                          long nextStreamVersion,
-                          long lastStreamVersion,
-                          long lastStreamPosition,
-                          ReadDirection readDirection,
-                          boolean isEnd,
-                          ReadNextStreamPage readNext,
-                          StreamMessage[] messages) {
+    public ReadStreamSlice(String streamId,
+                           SliceReadStatus status,
+                           long fromStreamVersion,
+                           long nextStreamVersion,
+                           long lastStreamVersion,
+                           long lastStreamPosition,
+                           ReadDirection readDirection,
+                           boolean isEnd,
+                           ReadNextStreamSlice readNext,
+                           StreamMessage[] messages) {
         this.streamId = streamId;
         this.status = status;
         this.fromStreamVersion = fromStreamVersion;
@@ -124,7 +124,7 @@ public class ReadStreamPage {
         return readDirection;
     }
 
-    public PageReadStatus getStatus() {
+    public SliceReadStatus getStatus() {
         return status;
     }
 
@@ -136,8 +136,8 @@ public class ReadStreamPage {
         return isEnd;
     }
 
-    public CompletableFuture<ReadStreamPage> readNext() {
-        // TODO: should this just return a ReadNextStreamPage instead?
+    public CompletableFuture<ReadStreamSlice> readNext() {
+        // TODO: should this just return a ReadNextStreamSlice instead?
         return readNext.get(nextStreamVersion);
     }
 
