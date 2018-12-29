@@ -33,7 +33,7 @@ class ReadAllEventsBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.START, 1).get();
+            ReadAllSlice read = es.readAllBackwards(Position.START, 1).get();
 
             assertTrue(read.isEnd());
             assertEquals(1, read.getMessages().length);
@@ -49,7 +49,7 @@ class ReadAllEventsBackwardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, messages.length).get();
+            ReadAllSlice read = es.readAllBackwards(Position.END, messages.length).get();
 
             ArrayUtils.reverse(messages);
             TestHelpers.assertEventDataEqual(messages, read.getMessages());
@@ -66,13 +66,13 @@ class ReadAllEventsBackwardTests extends TestFixture {
 
             List<StreamMessage> all = new ArrayList<>();
             Versionstamp position = Position.END;
-            ReadAllPage page;
+            ReadAllSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readAllBackwards(position, 1).get();
-                all.addAll(Arrays.asList(page.getMessages()));
-                position = page.getNextPosition();
-                atEnd = page.isEnd();
+                slice = es.readAllBackwards(position, 1).get();
+                all.addAll(Arrays.asList(slice.getMessages()));
+                position = slice.getNextPosition();
+                atEnd = slice.isEnd();
             }
 
             ArrayUtils.reverse(messages);
@@ -82,7 +82,7 @@ class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    void shouldBeAbleToReadEventsPageAtATime() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadEventsSliceAtATime() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
@@ -91,13 +91,13 @@ class ReadAllEventsBackwardTests extends TestFixture {
 
             List<StreamMessage> all = new ArrayList<>();
             Versionstamp position = Position.END;
-            ReadAllPage page;
+            ReadAllSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
-                page = es.readAllBackwards(position, 5).get();
-                all.addAll(Arrays.asList(page.getMessages()));
-                position = page.getNextPosition();
-                atEnd = page.isEnd();
+                slice = es.readAllBackwards(position, 5).get();
+                all.addAll(Arrays.asList(slice.getMessages()));
+                position = slice.getNextPosition();
+                atEnd = slice.isEnd();
             }
 
             ArrayUtils.reverse(messages);
@@ -107,18 +107,18 @@ class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    void shouldBeAbleToPageViaReadNext() throws ExecutionException, InterruptedException {
+    void shouldBeAbleToReadSlicesViaReadNext() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage page = es.readAllBackwards(Position.END, 1).get();
-            List<StreamMessage> all = new ArrayList<>(Arrays.asList(page.getMessages()));
-            while (!page.isEnd()) {
-                page = page.readNext().get();
-                all.addAll(Arrays.asList(page.getMessages()));
+            ReadAllSlice slice = es.readAllBackwards(Position.END, 1).get();
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(slice.getMessages()));
+            while (!slice.isEnd()) {
+                slice = slice.readNext().get();
+                all.addAll(Arrays.asList(slice.getMessages()));
             }
 
             ArrayUtils.reverse(messages);
@@ -128,14 +128,14 @@ class ReadAllEventsBackwardTests extends TestFixture {
     }
 
     @Test
-    void shouldReturnPartialPageIfNotEnoughEvents() throws ExecutionException, InterruptedException {
+    void shouldReturnPartialSliceIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, 10).get();
+            ReadAllSlice read = es.readAllBackwards(Position.END, 10).get();
 
             ArrayUtils.reverse(messages);
             assertTrue(read.getMessages().length < 10);
@@ -161,7 +161,7 @@ class ReadAllEventsBackwardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
             es.appendToStream("test-stream2", ExpectedVersion.ANY, messages).get();
 
-            ReadAllPage read = es.readAllBackwards(Position.END, 4).get();
+            ReadAllSlice read = es.readAllBackwards(Position.END, 4).get();
 
             assertEquals(4, read.getMessages().length);
             assertTrue(read.isEnd());

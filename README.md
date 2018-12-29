@@ -67,22 +67,22 @@ es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage());
 Read from a stream
 
 ```
-ReadStreamPage read = es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE);
+ReadStreamSlice read = es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE);
 ```
 
 Read backwards from a stream
 ```
-ReadStreamPage read = es.readStreamBackwards(stream, StreamPosition.END, 10);
+ReadStreamSlice read = es.readStreamBackwards(stream, StreamPosition.END, 10);
 ```
 
 Read from the all subspace
 ```
-ReadAllPage read = es.readAllForwards(Position.START, 10);
+ReadAllSlice read = es.readAllForwards(Position.START, 10);
 ```
 
 Read backwards from the all subspace
 ```
-ReadAllPage read = es.readAllBackwards(Position.END, 10);
+ReadAllSlice read = es.readAllBackwards(Position.END, 10);
 ```
 
 

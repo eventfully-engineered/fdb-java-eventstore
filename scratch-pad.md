@@ -1,8 +1,6 @@
 # Scratch Pad
 
-TODO: Clean up! Add better description. Add details about subspace and tuple layout. Add sample code to write and read data  
-
-TODO: Page to Slice  
+TODO: Clean up! Add better description. Add details about subspace and tuple layout. Add sample code to write and read data    
 TODO: javadocs - remove language to eventstore or sqlstreamstore outside of readme  
 TODO: do we want to wrap Versionstamp in a "(Global )Position" domain object?     
 

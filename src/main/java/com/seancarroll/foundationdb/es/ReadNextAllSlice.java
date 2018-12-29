@@ -5,16 +5,16 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Represents an operation to read the next all page.
+ * Represents an operation to read the next all slice.
  */
 @FunctionalInterface
-public interface ReadNextAllPage {
+public interface ReadNextAllSlice {
 
     /**
      *
      * @param fromPositionInclusive
      * @return
      */
-    CompletableFuture<ReadAllPage> get(Versionstamp fromPositionInclusive);
+    CompletableFuture<ReadAllSlice> get(Versionstamp fromPositionInclusive);
 
 }

@@ -37,7 +37,7 @@ class AppendToStreamTests extends TestFixture {
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
 
-            ReadStreamPage read = es.readStreamForwards(stream, 0, 2).get();
+            ReadStreamSlice read = es.readStreamForwards(stream, 0, 2).get();
             assertEquals(1, read.getMessages().length);
         }
     }
@@ -50,7 +50,7 @@ class AppendToStreamTests extends TestFixture {
             String stream = "test-stream";
             assertEquals(0, es.appendToStream(stream, ExpectedVersion.ANY, createNewStreamMessage()).get().getCurrentVersion());
 
-            ReadStreamPage read = es.readStreamForwards(stream, 0, 2).get();
+            ReadStreamSlice read = es.readStreamForwards(stream, 0, 2).get();
             assertEquals(1, read.getMessages().length);
         }
     }
