@@ -6,4 +6,11 @@
         </notes>
         <cve>CVE-2010-0538</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[false positive, CVE concerns an XML deserialization vulnerability that was discovered in slf4j's
+        EventData, which accepts an XML serialized string and can lead to arbitrary code execution. The vulnerability
+        is specifically in slf4j-ext and not in slf4j-api]]>
+        </notes>
+        <cve>CVE-2018-8088</cve>
+    </suppress>
 </suppressions>
