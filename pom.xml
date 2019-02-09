@@ -21,7 +21,6 @@
         <uuid.generator.version>3.1.5</uuid.generator.version>
 
         <junit.version>5.4.0</junit.version>
-        <junit-pioneer.version>0.3.0</junit-pioneer.version>
         <mockito.version>2.23.4</mockito.version>
         <assertj.version>3.11.1</assertj.version>
         <jmh.version>1.21</jmh.version>
