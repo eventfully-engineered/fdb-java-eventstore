@@ -14,15 +14,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <commons-lang3.version>3.8.1</commons-lang3.version>
-        <foundationdb.version>6.0.15</foundationdb.version>
+        <commons-lang3.version>3.9</commons-lang3.version>
+        <foundationdb.version>6.1.8</foundationdb.version>
         <guava.version>27.0.1-jre</guava.version>
-        <slf4j.version>1.8.0-beta2</slf4j.version>
+        <slf4j.version>1.8.0-beta4</slf4j.version>
         <uuid.generator.version>3.1.5</uuid.generator.version>
 
-        <junit.version>5.4.0</junit.version>
-        <mockito.version>2.24.0</mockito.version>
-        <assertj.version>3.12.0</assertj.version>
+        <junit.version>5.4.2</junit.version>
+        <mockito.version>2.27.0</mockito.version>
+        <assertj.version>3.12.2</assertj.version>
         <jmh.version>1.21</jmh.version>
 
         <coveralls-maven-plugin.version>4.3.0</coveralls-maven-plugin.version>
@@ -41,7 +41,7 @@
         <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
         <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
         <maven-site-plugin.version>3.7.1</maven-site-plugin.version>
-        <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
+        <maven-source-plugin.version>3.1.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
         <sonar-maven-plugin.version>3.6.0.1398</sonar-maven-plugin.version>
         <spotbugs-maven-plugin.version>3.1.11</spotbugs-maven-plugin.version>

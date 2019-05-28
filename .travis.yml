@@ -12,8 +12,25 @@ install:
   - wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-server_6.0.15-1_amd64.deb
   - sudo dpkg -i foundationdb-server_6.0.15-1_amd64.deb
 
+before_script:
+- curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+- chmod +x ./cc-test-reporter
+- ./cc-test-reporter before-build
+
+script: mvn verify -P code-coverage
+
+after_script:
+- ./cc-test-reporter format-coverage -d -t jacoco ./target/site/jacoco/jacoco.xml
+- ./cc-test-reporter upload-coverage -d
+
+
+#after_script:
+#- ./cc-test-reporter format-coverage -t simplecov -o coverage/codeclimate.backend.json coverage/backend/.resultset.json # Format backend coverage
+#- ./cc-test-reporter format-coverage -t lcov -o coverage/codeclimate.frontend.json coverage/frontend/lcov.info  # Format frontend coverage
+#- ./cc-test-reporter sum-coverage coverage/codeclimate.*.json -p 2                  # Sum both coverage parts into coverage/codeclimate.json
+#- if [[ "$TRAVIS_TEST_RESULT" == 0 ]]; then ./cc-test-reporter upload-coverage; fi  # Upload coverage/codeclimate.json
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
 #  - snyk monitor
 
-script: mvn verify -P code-coverage

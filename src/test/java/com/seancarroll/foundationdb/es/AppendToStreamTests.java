@@ -15,7 +15,7 @@ class AppendToStreamTests extends TestFixture {
 
     @BeforeEach
     void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(600);
+        fdb = FDB.selectAPIVersion(610);
         TestHelpers.clean(fdb);
     }
 

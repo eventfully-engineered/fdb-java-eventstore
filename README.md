@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/seancarroll/fdb-java-es.svg?branch=master)](https://travis-ci.org/seancarroll/fdb-java-es)
 [![codecov](https://codecov.io/gh/seancarroll/fdb-java-es/branch/master/graph/badge.svg)](https://codecov.io/gh/seancarroll/fdb-java-es)
+[![Maintainability](https://api.codeclimate.com/v1/badges/a752f86172d4399bb46b/maintainability)](https://codeclimate.com/github/seancarroll/fdb-java-es/maintainability)
+[![Sonarcloud Status](https://sonarcloud.io/api/project_badges/measure?project=seancarroll_fdb-java-es&metric=alert_status)](https://sonarcloud.io/dashboard?id=seancarroll_fdb-java-es)
 
 An event store layer build on top of FoundationDB
 
@@ -118,3 +120,12 @@ Links to docs, research, projects that have inspired design or implementation
 
 
 - https://forums.foundationdb.org/t/ranges-without-explicit-end-go/773 --> read
+
+
+Build / CI / Plugins 
+- Travis CI [https://travis-ci.org/seancarroll/fdb-java-es]
+- SonarCloud [https://sonarcloud.io/dashboard?id=seancarroll_fdb-java-es]
+- CodeCov [https://codecov.io/gh/seancarroll/fdb-java-es]
+- Coveralls [https://coveralls.io/github/seancarroll/fdb-java-es]
+- Code Climate [https://codeclimate.com/repos/5bf0b88184303f02850000c0/settings/test_reporter]
+- Snyk [https://app.snyk.io/org/seancarroll/projects]
