@@ -15,8 +15,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <commons-lang3.version>3.9</commons-lang3.version>
-        <foundationdb.version>6.1.8</foundationdb.version>
-        <guava.version>27.0.1-jre</guava.version>
+        <foundationdb.version>6.1.9</foundationdb.version>
+        <guava.version>28.1-jre</guava.version>
         <slf4j.version>1.8.0-beta4</slf4j.version>
         <uuid.generator.version>3.1.5</uuid.generator.version>
 
@@ -26,7 +26,7 @@
         <jmh.version>1.21</jmh.version>
 
         <coveralls-maven-plugin.version>4.3.0</coveralls-maven-plugin.version>
-        <dependency-check-maven.version>5.0.0</dependency-check-maven.version>
+        <dependency-check-maven.version>5.2.2</dependency-check-maven.version>
         <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
         <maven-clean-plugin.version>3.1.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
