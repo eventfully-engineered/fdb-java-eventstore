@@ -43,8 +43,8 @@
         <maven-site-plugin.version>3.7.1</maven-site-plugin.version>
         <maven-source-plugin.version>3.1.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
-        <sonar-maven-plugin.version>3.6.0.1398</sonar-maven-plugin.version>
-        <spotbugs-maven-plugin.version>3.1.11</spotbugs-maven-plugin.version>
+        <sonar-maven-plugin.version>3.6.1.1688</sonar-maven-plugin.version>
+        <spotbugs-maven-plugin.version>3.1.12.2</spotbugs-maven-plugin.version>
     </properties>
 
     <scm>
