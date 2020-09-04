@@ -1,11 +1,9 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.ObjectArrays;
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -13,17 +11,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ReadAllEventsBackwardTests extends TestFixture {
-
-    private FDB fdb;
-
-    @BeforeEach
-    void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(610);
-        TestHelpers.clean(fdb);
-    }
+class ReadAllEventsBackwardTests extends ITFixture {
 
     @Test
     void shouldBeAbleToReadFirstEvent() throws ExecutionException, InterruptedException {

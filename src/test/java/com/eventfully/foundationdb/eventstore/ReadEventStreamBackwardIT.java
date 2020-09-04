@@ -1,8 +1,7 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
-import org.junit.jupiter.api.BeforeEach;
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,22 +13,14 @@ import static com.eventfully.foundationdb.eventstore.TestHelpers.assertEventData
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class ReadEventStreamFowardTests extends TestFixture {
-
-    private FDB fdb;
-
-    @BeforeEach
-    void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(610);
-        TestHelpers.clean(fdb);
-    }
+class ReadEventStreamBackwardTests extends ITFixture {
 
     @Test
     void shouldThrowWhenCountLessThanOrEqualZero() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
-            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, 0));
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", 0, 0));
         }
     }
 
@@ -38,7 +29,7 @@ class ReadEventStreamFowardTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
-            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", -2, 1));
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", -2, 1));
         }
     }
 
@@ -47,7 +38,7 @@ class ReadEventStreamFowardTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
-            assertThrows(IllegalArgumentException.class, () -> es.readStreamForwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
+            assertThrows(IllegalArgumentException.class, () -> es.readStreamBackwards("test-stream", 0, EventStoreLayer.MAX_READ_SIZE + 1));
         }
     }
 
@@ -56,23 +47,22 @@ class ReadEventStreamFowardTests extends TestFixture {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
-            ReadStreamSlice read = es.readStreamForwards("test-stream", 0, 1).get();
+            ReadStreamSlice read = es.readStreamBackwards("test-stream", 0, 1).get();
 
             assertEquals(SliceReadStatus.STREAM_NOT_FOUND, read.getStatus());
         }
     }
-
 
 //    @Test
 //    void shouldReturnNoEventsWhenStreamIsEmpty() {
 //
 //    }
 
+
 //    @Test
 //    void shouldNotifyUsingStatusCodeWhenStreamIsDeleted() {
-//        fail();
+//        fail("not implemented");
 //    }
-
 
     @Test
     void shouldReturnEmptySliceForNonExistingRange() throws ExecutionException, InterruptedException {
@@ -84,7 +74,7 @@ class ReadEventStreamFowardTests extends TestFixture {
             // ExpectedVersion.EmptyStream
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, 10, 1).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, 10, 1).get();
 
             assertEquals(0, read.getMessages().length);
         }
@@ -100,14 +90,14 @@ class ReadEventStreamFowardTests extends TestFixture {
             // ExpectedVersion.EmptyStream
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, 4, 5).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, 1, 5).get();
 
-            assertEquals(1, read.getMessages().length);
+            assertEquals(2, read.getMessages().length);
         }
     }
 
     @Test
-    void shouldReturnEventsInSameOrderAsWritten() throws ExecutionException, InterruptedException {
+    void shouldReturnEventsInReverseOrderComparedToWritten() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
@@ -115,8 +105,9 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, 0, messages.length).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, StreamPosition.END, messages.length).get();
 
+            ArrayUtils.reverse(messages);
             assertEventDataEqual(messages, read.getMessages());
         }
     }
@@ -130,9 +121,9 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, 4, 1).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, 3, 1).get();
 
-            assertEventDataEqual(messages[4], read.getMessages()[0]);
+            TestHelpers.assertEventDataEqual(messages[3], read.getMessages()[0]);
         }
     }
 
@@ -145,10 +136,25 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, 3, 2).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, 3, 2).get();
 
             // TODO: use a comparator something like EventDataComparer
             assertEquals(2, read.getMessages().length);
+        }
+    }
+
+    @Test
+    void shouldBeAbleToReadFirstEvent() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
+
+            String stream = "test-stream";
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
+
+            ReadStreamSlice read = es.readStreamBackwards(stream, StreamPosition.START, 1).get();
+
+            TestHelpers.assertEventDataEqual(messages[0], read.getMessages()[0]);
         }
     }
 
@@ -161,7 +167,7 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream(stream, ExpectedVersion.ANY, messages).get();
 
-            ReadStreamSlice read = es.readStreamForwards(stream, StreamPosition.END, 1).get();
+            ReadStreamSlice read = es.readStreamBackwards(stream, StreamPosition.END, 1).get();
 
             TestHelpers.assertEventDataEqual(messages[4], read.getMessages()[0]);
         }
@@ -176,15 +182,17 @@ class ReadEventStreamFowardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
-            Long position = StreamPosition.START;
+            Long position = StreamPosition.END;
             ReadStreamSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
-                slice = es.readStreamForwards("test-stream", position, 1).get();
+                slice = es.readStreamBackwards("test-stream", position, 1).get();
                 all.addAll(Arrays.asList(slice.getMessages()));
                 position = slice.getNextStreamVersion();
                 atEnd = slice.isEnd();
             }
+
+            ArrayUtils.reverse(messages);
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
             TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }
@@ -199,16 +207,17 @@ class ReadEventStreamFowardTests extends TestFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
-            Long position = StreamPosition.START;
+            Long position = StreamPosition.END;
             ReadStreamSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
-                slice = es.readStreamForwards("test-stream", position, 5).get();
+                slice = es.readStreamBackwards("test-stream", position, 5).get();
                 all.addAll(Arrays.asList(slice.getMessages()));
                 position = slice.getNextStreamVersion();
                 atEnd = slice.isEnd();
             }
 
+            ArrayUtils.reverse(messages);
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
             TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }
@@ -222,13 +231,14 @@ class ReadEventStreamFowardTests extends TestFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
-            List<StreamMessage> all = new ArrayList<>();
-            ReadStreamSlice slice = es.readStreamForwards("test-stream", StreamPosition.START, 1).get();
-            while (slice.getMessages().length > 0 || !slice.isEnd()) {
-                all.addAll(Arrays.asList(slice.getMessages()));
+            ReadStreamSlice slice = es.readStreamBackwards("test-stream", StreamPosition.END, 1).get();
+            List<StreamMessage> all = new ArrayList<>(Arrays.asList(slice.getMessages()));
+            while (!slice.isEnd()) {
                 slice = slice.readNext().get();
+                all.addAll(Arrays.asList(slice.getMessages()));
             }
 
+            ArrayUtils.reverse(messages);
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
             TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
         }

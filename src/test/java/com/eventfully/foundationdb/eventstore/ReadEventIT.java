@@ -1,23 +1,15 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class ReadEventTests extends TestFixture {
-
-    private FDB fdb;
-
-    @BeforeEach
-    void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(610);
-        TestHelpers.clean(fdb);
-    }
+class ReadEventTests extends ITFixture {
 
     @Test
     void shouldThrowWhenStreamIdIsNull() throws ExecutionException, InterruptedException {

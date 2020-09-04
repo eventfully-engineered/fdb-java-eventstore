@@ -10,15 +10,15 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class AppendToStreamTests extends TestFixture {
+class AppendToStreamTests extends ITFixture {
 
-    private FDB fdb;
-
-    @BeforeEach
-    void clean() throws ExecutionException, InterruptedException {
-        fdb = FDB.selectAPIVersion(610);
-        TestHelpers.clean(fdb);
-    }
+//    private FDB fdb;
+//
+//    @BeforeEach
+//    void clean() throws ExecutionException, InterruptedException {
+//        fdb = FDB.selectAPIVersion(630);
+//        TestHelpers.clean(fdb);
+//    }
 
     @Test
     void shouldNotAllowAppendingZeroEventsToStream() throws ExecutionException, InterruptedException {
