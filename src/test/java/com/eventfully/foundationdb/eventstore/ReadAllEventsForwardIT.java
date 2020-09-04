@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ReadAllEventsForwardTests extends ITFixture {
+class ReadAllEventsForwardIT extends ITFixture {
 
     @Test
     void shouldBeAbleToReadLastEvent() throws ExecutionException, InterruptedException {

@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class ReadHeadPositionTests extends ITFixture {
+class ReadHeadPositionIT extends ITFixture {
 
     @Test
     void shouldReturnNullWhenNoEvents() throws ExecutionException, InterruptedException {

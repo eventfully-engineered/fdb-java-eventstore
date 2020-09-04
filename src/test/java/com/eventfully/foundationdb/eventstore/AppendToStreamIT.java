@@ -1,24 +1,17 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
-class AppendToStreamTests extends ITFixture {
-
-//    private FDB fdb;
-//
-//    @BeforeEach
-//    void clean() throws ExecutionException, InterruptedException {
-//        fdb = FDB.selectAPIVersion(630);
-//        TestHelpers.clean(fdb);
-//    }
+class AppendToStreamIT extends ITFixture {
 
     @Test
     void shouldNotAllowAppendingZeroEventsToStream() throws ExecutionException, InterruptedException {

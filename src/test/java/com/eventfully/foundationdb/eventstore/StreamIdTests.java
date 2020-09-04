@@ -2,7 +2,9 @@ package com.eventfully.foundationdb.eventstore;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StreamIdTests {
@@ -10,28 +12,28 @@ class StreamIdTests {
     @Test
     void shouldNotBeEqualToNull() {
         StreamId stream = new StreamId("");
-        assertFalse(stream.equals(null));
+        assertNotEquals(stream, null);
     }
 
     @Test
     void shouldNotBeEqualToDifferentObject() {
-        assertFalse(new StreamId("").equals(new Object()));
+        assertNotEquals(new Object(), new StreamId(""));
     }
 
     @Test
     void shouldNotBeEqualWhenOriginalStreamIdsAreDifferent() {
-        assertFalse(new StreamId("id-1").equals(new StreamId("id-2")));
+        assertNotEquals(new StreamId("id-2"), new StreamId("id-1"));
     }
 
     @Test
     void shouldBeEqualWhenOriginalStreamIdsAreSame() {
-        assertTrue(new StreamId("id-1").equals(new StreamId("id-1")));
+        assertEquals(new StreamId("id-1"), new StreamId("id-1"));
     }
 
     @Test
     void shouldBeEqualWhenSameStreamIdObject() {
         StreamId stream = new StreamId("");
-        assertTrue(stream.equals(stream));
+        assertEquals(stream, stream);
     }
 
 }

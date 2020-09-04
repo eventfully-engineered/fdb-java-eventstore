@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class ReadEventTests extends ITFixture {
+class ReadEventIT extends ITFixture {
 
     @Test
     void shouldThrowWhenStreamIdIsNull() throws ExecutionException, InterruptedException {

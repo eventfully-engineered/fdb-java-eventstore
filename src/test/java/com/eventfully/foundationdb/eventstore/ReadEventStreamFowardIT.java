@@ -1,8 +1,6 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.apple.foundationdb.FDB;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,7 +12,7 @@ import static com.eventfully.foundationdb.eventstore.TestHelpers.assertEventData
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class ReadEventStreamFowardTests extends ITFixture {
+class ReadEventStreamFowardIT extends ITFixture {
 
     @Test
     void shouldThrowWhenCountLessThanOrEqualZero() throws ExecutionException, InterruptedException {
