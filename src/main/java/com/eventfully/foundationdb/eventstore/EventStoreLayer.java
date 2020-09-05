@@ -143,7 +143,16 @@ public class EventStoreLayer implements EventStore {
 
                     NewStreamMessage message = messages[i];
                     long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), i, createdDateUtcEpoch, versionstamp);
+                    Tuple streamSubspaceValue = Tuple.from(
+                        message.getMessageId(),
+                        streamId.getOriginalId(),
+                        message.getType(),
+                        message.getData(),
+                        message.getMetadata(),
+                        i,
+                        createdDateUtcEpoch,
+                        versionstamp);
+
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
 
                     Tuple globalSubspaceValue = Tuple.from(i + POINTER_DELIMITER + streamId.getOriginalId());
@@ -184,7 +193,15 @@ public class EventStoreLayer implements EventStore {
                     long createdDateUtcEpoch = Instant.now().toEpochMilli();
                     NewStreamMessage message = messages[i];
 
-                    Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                    Tuple streamSubspaceValue = Tuple.from(
+                        message.getMessageId(),
+                        streamId.getOriginalId(),
+                        message.getType(),
+                        message.getData(),
+                        message.getMetadata(),
+                        eventNumber,
+                        createdDateUtcEpoch,
+                        versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
 
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
@@ -204,13 +221,16 @@ public class EventStoreLayer implements EventStore {
         // TODO: how to handle?
         // We can clear the stream subspace via clear(Range) but how to delete from global subspace?
         // would we need a scavenger process? something else?
+        // add to a delete job scavenger process which contains the stream id/hash to delete
         // database.run(tr -> {);
         throw new RuntimeException("Not implemented exception");
     }
 
     @Override
     public void deleteMessage(String streamId, UUID messageId) {
-        // database.run(tr -> null);
+         database.run(tr -> {
+             return null;
+         });
         throw new RuntimeException("Not implemented exception");
     }
 
@@ -271,31 +291,30 @@ public class EventStoreLayer implements EventStore {
                 KeyValue kv = keyValues.get(i);
                 String value = Tuple.fromBytes(kv.getValue()).getString(0);
                 String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
-                completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
+                completableFutures.add(readEvent(pointerParts[1], Long.parseLong(pointerParts[0])));
             }
 
-            // TODO: will this block?
-            // TODO: run benchmark between what we have and using CompletableFuture.allOf
-            // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
-            StreamMessage[] messages = completableFutures.stream()
-                .map(CompletableFuture::join)
-                .map(result -> result.getEvent())
-                .toArray(size -> new StreamMessage[completableFutures.size()]);
+            // allof doesnt work with lists however if we make completablesFutures an array we run into a
+            // different issue with the `.map(ReadEventResult::getEvent)` as the array needs to be bound to ?
+            return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]))
+                .thenCompose(ignore -> {
+                    StreamMessage[] messages = completableFutures.stream()
+                        .map(CompletableFuture::join)
+                        .map(ReadEventResult::getEvent)
+                        .toArray(size -> new StreamMessage[completableFutures.size()]);
 
-            // if we are at the end return next position as null otherwise
-            // grab it from the last item from the range query which is outside the slice we want
-            // TODO: Review / fix this.
-            Versionstamp nextPosition = maxCount >= keyValues.size()
-                ? null
-                : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
+                    Versionstamp nextPosition = maxCount >= keyValues.size()
+                        ? null
+                        : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-            return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
-                fromPositionInclusive,
-                nextPosition,
-                maxCount >= keyValues.size(),
-                ReadDirection.FORWARD,
-                readNext,
-                messages));
+                    return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                        fromPositionInclusive,
+                        nextPosition,
+                        maxCount >= keyValues.size(),
+                        ReadDirection.FORWARD,
+                        readNext,
+                        messages));
+                });
         });
 
     }
@@ -350,31 +369,28 @@ public class EventStoreLayer implements EventStore {
                 KeyValue kv = keyValues.get(i);
                 String value = Tuple.fromBytes(kv.getValue()).getString(0);
                 String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
-                completableFutures.add(readEvent(pointerParts[1], Long.valueOf(pointerParts[0])));
+                completableFutures.add(readEvent(pointerParts[1], Long.parseLong(pointerParts[0])));
             }
 
-            // TODO: will this block?
-            // TODO: run benchmark between what we have and using CompletableFuture.allOf
-            // CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[completableFutures.size()]));
-            StreamMessage[] messages = completableFutures.stream()
-                .map(CompletableFuture::join)
-                .map(result -> result.getEvent())
-                .toArray(size -> new StreamMessage[completableFutures.size()]);
+            return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]))
+                .thenCompose(ignore -> {
+                    StreamMessage[] messages = completableFutures.stream()
+                        .map(CompletableFuture::join)
+                        .map(ReadEventResult::getEvent)
+                        .toArray(size -> new StreamMessage[completableFutures.size()]);
 
-                // if we are at the end return next position as null otherwise
-                // grab it from the last item from the range query which is outside the slice we want
-                // TODO: Review / fix this.
-                Versionstamp nextPosition = maxCount >= keyValues.size()
-                    ? null
-                    : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
+                    Versionstamp nextPosition = maxCount >= keyValues.size()
+                        ? null
+                        : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
-                    fromPositionInclusive,
-                    nextPosition,
-                    maxCount >= keyValues.size(),
-                    ReadDirection.BACKWARD,
-                    readNext,
-                    messages));
+                    return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                        fromPositionInclusive,
+                        nextPosition,
+                        maxCount >= keyValues.size(),
+                        ReadDirection.BACKWARD,
+                        readNext,
+                        messages));
+                });
 
         });
 
