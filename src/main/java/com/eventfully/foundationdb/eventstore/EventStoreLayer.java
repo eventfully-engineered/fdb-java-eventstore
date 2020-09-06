@@ -250,7 +250,7 @@ public class EventStoreLayer implements EventStore {
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                return CompletableFuture.completedFuture(new ReadAllSlice(
                     fromPositionInclusive,
                     fromPositionInclusive,
                     true,
@@ -282,7 +282,7 @@ public class EventStoreLayer implements EventStore {
                         ? null
                         : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-                    return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                    return CompletableFuture.completedFuture(new ReadAllSlice(
                         fromPositionInclusive,
                         nextPosition,
                         maxCount >= keyValues.size(),
@@ -329,7 +329,7 @@ public class EventStoreLayer implements EventStore {
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                return CompletableFuture.completedFuture(new ReadAllSlice(
                     fromPositionInclusive,
                     fromPositionInclusive,
                     true,
@@ -358,7 +358,7 @@ public class EventStoreLayer implements EventStore {
                         ? null
                         : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
 
-                    return CompletableFuture.supplyAsync(() -> new ReadAllSlice(
+                    return CompletableFuture.completedFuture(new ReadAllSlice(
                         fromPositionInclusive,
                         nextPosition,
                         maxCount >= keyValues.size(),
@@ -409,7 +409,7 @@ public class EventStoreLayer implements EventStore {
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
+                return CompletableFuture.completedFuture(new ReadStreamSlice(
                     streamId.getOriginalId(),
                     SliceReadStatus.STREAM_NOT_FOUND,
                     fromVersionInclusive,
@@ -444,7 +444,7 @@ public class EventStoreLayer implements EventStore {
             Tuple nextPositionValue = Tuple.fromBytes(keyValues.get(limit - 1).getValue());
             long nextPosition = nextPositionValue.getLong(5) + 1;
 
-            return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
+            return CompletableFuture.completedFuture(new ReadStreamSlice(
                 streamId.getOriginalId(),
                 SliceReadStatus.SUCCESS,
                 fromVersionInclusive,
@@ -487,7 +487,7 @@ public class EventStoreLayer implements EventStore {
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
+                return CompletableFuture.completedFuture(new ReadStreamSlice(
                     streamId.getOriginalId(),
                     SliceReadStatus.STREAM_NOT_FOUND,
                     fromVersionInclusive,
@@ -522,7 +522,7 @@ public class EventStoreLayer implements EventStore {
             Tuple nextPositionValue = Tuple.fromBytes(keyValues.get(limit - 1).getValue());
             long nextPosition = nextPositionValue.getLong(5) - 1;
 
-            return CompletableFuture.supplyAsync(() -> new ReadStreamSlice(
+            return CompletableFuture.completedFuture(new ReadStreamSlice(
                 streamId.getOriginalId(),
                 SliceReadStatus.SUCCESS,
                 fromVersionInclusive,
@@ -577,17 +577,17 @@ public class EventStoreLayer implements EventStore {
             CompletableFuture<ReadStreamSlice> readFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
             return readFuture.thenCompose(read -> {
                 if (read.getStatus() == SliceReadStatus.STREAM_NOT_FOUND) {
-                    return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
+                    return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
                 }
 
-                return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), read.getMessages()[0].getStreamVersion(), read.getMessages()[0]));
+                return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), read.getMessages()[0].getStreamVersion(), read.getMessages()[0]));
             });
 
         } else {
             CompletableFuture<byte[]> valueBytesFuture = database.read(tr -> tr.get(streamSubspace.pack(Tuple.from(eventNumber))));
             return valueBytesFuture.thenCompose(valueBytes -> {
                 if (valueBytes == null) {
-                    return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
+                    return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
                 }
 
                 Tuple value = Tuple.fromBytes(valueBytes);
@@ -601,7 +601,7 @@ public class EventStoreLayer implements EventStore {
                     value.getBytes(4),
                     value.getBytes(3)
                 );
-                return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), eventNumber, message));
+                return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), eventNumber, message));
             });
         }
     }
