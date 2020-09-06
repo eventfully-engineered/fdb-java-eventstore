@@ -2,7 +2,6 @@ package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**

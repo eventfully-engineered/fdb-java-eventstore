@@ -1,6 +1,10 @@
 package com.eventfully.foundationdb.eventstore;
 
-import com.apple.foundationdb.*;
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.StreamingMode;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
@@ -13,7 +17,10 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;

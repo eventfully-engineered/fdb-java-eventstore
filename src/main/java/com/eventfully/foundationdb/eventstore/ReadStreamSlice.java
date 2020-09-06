@@ -152,5 +152,19 @@ public class ReadStreamSlice {
             .add("readDirection", getReadDirection())
             .toString();
     }
+
+    public static ReadStreamSlice notFoundSlice(StreamId streamId, long fromVersionInclusive, ReadNextStreamSlice readNext) {
+        return new ReadStreamSlice(
+            streamId.getOriginalId(),
+            SliceReadStatus.STREAM_NOT_FOUND,
+            fromVersionInclusive,
+            StreamVersion.END,
+            StreamVersion.END,
+            StreamPosition.END,
+            ReadDirection.FORWARD,
+            true,
+            readNext,
+            Empty.STREAM_MESSAGES);
+    }
 }
 
