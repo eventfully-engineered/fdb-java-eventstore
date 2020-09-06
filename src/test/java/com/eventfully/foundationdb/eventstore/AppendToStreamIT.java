@@ -4,7 +4,10 @@ import com.apple.foundationdb.Database;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -115,6 +118,26 @@ class AppendToStreamIT extends ITFixture {
     }
 
     // should_append_with_stream_exists_exp_ver_to_existing_stream
+    @Test
+    void shouldAppendWithStreamExistsExpectedVersionToExistingStream() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
+
+            assertEquals(0, es.appendToStream("test-stream", ExpectedVersion.NO_STREAM, createNewStreamMessage()).get().getCurrentVersion());
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3);
+            assertEquals(3, es.appendToStream("test-stream", 0,messages).get().getCurrentVersion());
+
+            ReadStreamSlice read = es.readStreamForwards("test-stream", 0, 4).get();
+            assertEquals(4, read.getMessages().length);
+            assertEquals(0, read.getMessages()[0].getStreamVersion());
+            assertEquals(1, read.getMessages()[1].getStreamVersion());
+            assertEquals(2, read.getMessages()[2].getStreamVersion());
+            assertEquals(3, read.getMessages()[3].getStreamVersion());
+        }
+    }
+
+
     // should_append_with_stream_exists_exp_ver_to_stream_with_multiple_events
     // should_append_with_stream_exists_exp_ver_if_metadata_stream_exists
     // should_fail_appending_with_stream_exists_exp_ver_and_stream_does_not_exist
@@ -123,7 +146,7 @@ class AppendToStreamIT extends ITFixture {
 
 
     @Test
-    void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException {
+    void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException, TimeoutException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 
@@ -132,6 +155,7 @@ class AppendToStreamIT extends ITFixture {
 
             assertEquals(4, appendResult.getCurrentVersion());
             // TODO: nextExpectedVersion?
+
         }
     }
 

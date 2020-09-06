@@ -88,26 +88,24 @@ public class EventStoreLayer implements EventStore {
     // TODO: clean up
     private CompletableFuture<AppendResult> appendToStreamExpectedVersionAny(StreamId streamId, NewStreamMessage[] messages) {
         CompletableFuture<ReadEventResult> readEventResultFuture = readEventInternal(streamId, StreamPosition.END);
-        // TODO: do we need to do any version/event number checking?
 
         return readEventResultFuture.thenCompose(readEventResult -> {
             Subspace globalSubspace = getGlobalSubspace();
             Subspace streamSubspace = getStreamSubspace(streamId);
 
-            // TODO: check
             AtomicLong latestStreamVersion = new AtomicLong(readEventResult.getEventNumber());
+
+            // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
+            // eventstore bounces between those as well as position and event number
+            // TODO: should timestamp be outside the loop and passed in? does it matter?
+            // TODO: rather than a single tuple value how about we store two values and avoid having to a string split?
+            // see how the perf compares
             CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
                 for (int i = 0; i < messages.length; i++) {
-                    // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
-                    // eventstore bounces between those as well as position and event number
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
-                    // TODO: should timestamp be outside the loop and passed in? does it matter?
                     Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
-
-                    // TODO: rather than a single tuple value how about we store two values and avoid having to a string split?
-                    // see how the perf compares
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
@@ -135,14 +133,14 @@ public class EventStoreLayer implements EventStore {
             Subspace globalSubspace = getGlobalSubspace();
             Subspace streamSubspace = getStreamSubspace(streamId);
 
+            AtomicLong latestStreamVersion = new AtomicLong(-1);
             CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
                 for (int i = 0; i < messages.length; i++) {
+                    long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
-                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], i, versionstamp);
-
+                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
-
-                    Tuple globalSubspaceValue = Tuple.from(i + POINTER_DELIMITER + streamId.getOriginalId());
+                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
@@ -174,16 +172,15 @@ public class EventStoreLayer implements EventStore {
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
-
-                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], i, versionstamp);
+                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
-
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
                 return tr.getVersionstamp();
             });
+
             return trVersionFuture
                 .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
                 .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
@@ -580,7 +577,7 @@ public class EventStoreLayer implements EventStore {
 
     private static StreamMessage unpackByteTupleToStreamMessage(StreamId streamId, byte[] bytes) {
         Tuple value = Tuple.fromBytes(bytes);
-        return  new StreamMessage(
+        return new StreamMessage(
             streamId.getOriginalId(),
             value.getUUID(0),
             value.getLong(5),
