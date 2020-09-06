@@ -98,16 +98,13 @@ public class EventStoreLayer implements EventStore {
                     // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
                     // eventstore bounces between those as well as position and event number
                     long eventNumber = latestStreamVersion.incrementAndGet();
-
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
-
-                    NewStreamMessage message = messages[i];
-
-                    // TODO: should this be outside the loop? does it matter?
-                    long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    Tuple streamSubspaceValue = Tuple.from(message.getMessageId(), streamId.getOriginalId(), message.getType(), message.getData(), message.getMetadata(), eventNumber, createdDateUtcEpoch, versionstamp);
+                    // TODO: should timestamp be outside the loop and passed in? does it matter?
+                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
 
+                    // TODO: rather than a single tuple value how about we store two values and avoid having to a string split?
+                    // see how the perf compares
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
@@ -128,9 +125,7 @@ public class EventStoreLayer implements EventStore {
 
         return backwardSliceFuture.thenCompose(backwardSlice -> {
             if (SliceReadStatus.STREAM_NOT_FOUND != backwardSlice.getStatus()) {
-                // ErrorMessages.AppendFailedWrongExpectedVersion
-                // $"Append failed due to WrongExpectedVersion.Stream: {streamId}, Expected version: {expectedVersion}"
-                throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId.getOriginalId(), StreamVersion.NONE));
+                throw new WrongExpectedVersionException(streamId.getOriginalId(), StreamVersion.NONE);
             }
             return CompletableFuture.completedFuture(backwardSlice);
         }).thenCompose(backwardSlice -> {
@@ -140,18 +135,7 @@ public class EventStoreLayer implements EventStore {
             CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
                 for (int i = 0; i < messages.length; i++) {
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
-
-                    NewStreamMessage message = messages[i];
-                    long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    Tuple streamSubspaceValue = Tuple.from(
-                        message.getMessageId(),
-                        streamId.getOriginalId(),
-                        message.getType(),
-                        message.getData(),
-                        message.getMetadata(),
-                        i,
-                        createdDateUtcEpoch,
-                        versionstamp);
+                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], i, versionstamp);
 
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
 
@@ -175,7 +159,7 @@ public class EventStoreLayer implements EventStore {
         // TODO: do we need to do any version/event number checking?
         return readEventResultFuture.thenCompose(readEventResult -> {
             if (!Objects.equals(expectedVersion, readEventResult.getEventNumber())) {
-                throw new WrongExpectedVersionException(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId.getOriginalId(), expectedVersion, readEventResult.getEventNumber()));
+                throw new WrongExpectedVersionException(streamId.getOriginalId(), expectedVersion, readEventResult.getEventNumber());
             }
             return CompletableFuture.completedFuture(readEventResult);
         }).thenCompose(readEventResult -> {
@@ -187,21 +171,9 @@ public class EventStoreLayer implements EventStore {
 
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
-
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
 
-                    long createdDateUtcEpoch = Instant.now().toEpochMilli();
-                    NewStreamMessage message = messages[i];
-
-                    Tuple streamSubspaceValue = Tuple.from(
-                        message.getMessageId(),
-                        streamId.getOriginalId(),
-                        message.getType(),
-                        message.getData(),
-                        message.getMetadata(),
-                        eventNumber,
-                        createdDateUtcEpoch,
-                        versionstamp);
+                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], i, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
 
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
@@ -229,6 +201,8 @@ public class EventStoreLayer implements EventStore {
     @Override
     public void deleteMessage(String streamId, UUID messageId) {
          database.run(tr -> {
+             // Subspace streamSubspace = getStreamSubspace(new StreamId(streamId));
+             // tr.clear(streamSubspace.pack(Tuple.from(eventNumber)));
              return null;
          });
         throw new RuntimeException("Not implemented exception");
@@ -282,7 +256,8 @@ public class EventStoreLayer implements EventStore {
                     true,
                     ReadDirection.FORWARD,
                     readNext,
-                    Empty.STREAM_MESSAGES));
+                    Empty.STREAM_MESSAGES)
+                );
             }
 
             int limit = Math.min(maxCount, keyValues.size());
@@ -629,6 +604,18 @@ public class EventStoreLayer implements EventStore {
                 return CompletableFuture.supplyAsync(() -> new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), eventNumber, message));
             });
         }
+    }
+
+    private static Tuple packStreamSubspaceValue(StreamId streamId, NewStreamMessage message, long eventNumber, Versionstamp versionstamp) {
+        return Tuple.from(
+            message.getMessageId(),
+            streamId.getOriginalId(),
+            message.getType(),
+            message.getData(),
+            message.getMetadata(),
+            eventNumber,
+            Instant.now().toEpochMilli(),
+            versionstamp);
     }
 
     private Subspace getGlobalSubspace() {
