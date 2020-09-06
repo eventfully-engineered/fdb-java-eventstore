@@ -9,7 +9,7 @@ services:
 install:
   - wget https://www.foundationdb.org/downloads/6.2.22/ubuntu/installers/foundationdb-clients_6.2.22-1_amd64.deb
   - sudo dpkg -i foundationdb-clients_6.2.22-1_amd64.deb
-  - wget hhttps://www.foundationdb.org/downloads/6.2.22/ubuntu/installers/foundationdb-server_6.2.22-1_amd64.deb
+  - wget https://www.foundationdb.org/downloads/6.2.22/ubuntu/installers/foundationdb-server_6.2.22-1_amd64.deb
   - sudo dpkg -i foundationdb-server_6.2.22-1_amd64.deb
 
 before_script:
