@@ -14,4 +14,12 @@ public class WrongExpectedVersionException extends RuntimeException {
         super(message);
     }
 
+    public WrongExpectedVersionException(String streamId, int version) {
+        super(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d.", streamId, version));
+    }
+
+    public WrongExpectedVersionException(String streamId, long expectedVersion, long eventNumber) {
+        super(String.format("Append failed due to wrong expected version. Stream %s. Expected version: %d. Current version %d.", streamId, expectedVersion, eventNumber));
+    }
+
 }
