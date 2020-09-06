@@ -18,6 +18,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
+// TODO: for append, should we be starting a transaction that encompasses the read + write just to make sure nothing
+// else can write to our expected version?
+
 /**
  *
  */
@@ -168,7 +171,6 @@ public class EventStoreLayer implements EventStore {
 
             AtomicLong latestStreamVersion = new AtomicLong(readEventResult.getEventNumber());
             CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
-
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -195,16 +197,6 @@ public class EventStoreLayer implements EventStore {
         // would we need a scavenger process? something else?
         // add to a delete job scavenger process which contains the stream id/hash to delete
         // database.run(tr -> {);
-        throw new RuntimeException("Not implemented exception");
-    }
-
-    @Override
-    public void deleteMessage(String streamId, UUID messageId) {
-         database.run(tr -> {
-             // Subspace streamSubspace = getStreamSubspace(new StreamId(streamId));
-             // tr.clear(streamSubspace.pack(Tuple.from(eventNumber)));
-             return null;
-         });
         throw new RuntimeException("Not implemented exception");
     }
 
@@ -425,18 +417,7 @@ public class EventStoreLayer implements EventStore {
             int limit = Math.min(maxCount, keyValues.size());
             StreamMessage[] messages = new StreamMessage[limit];
             for (int i = 0; i < limit; i++) {
-                KeyValue kv = keyValues.get(i);
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-                StreamMessage message = new StreamMessage(
-                    streamId.getOriginalId(),
-                    tupleValue.getUUID(0),
-                    tupleValue.getLong(5),
-                    tupleValue.getVersionstamp(7),
-                    tupleValue.getLong(6),
-                    tupleValue.getString(2),
-                    tupleValue.getBytes(4),
-                    tupleValue.getBytes(3)
-                );
+                StreamMessage message = unpackByteTupleToStreamMessage(streamId, keyValues.get(i).getValue());
                 messages[i] = message;
             }
 
@@ -503,18 +484,7 @@ public class EventStoreLayer implements EventStore {
             int limit = Math.min(maxCount, keyValues.size());
             StreamMessage[] messages = new StreamMessage[limit];
             for (int i = 0; i < limit; i++) {
-                KeyValue kv = keyValues.get(i);
-                Tuple tupleValue = Tuple.fromBytes(kv.getValue());
-                StreamMessage message = new StreamMessage(
-                    streamId.getOriginalId(),
-                    tupleValue.getUUID(0),
-                    tupleValue.getLong(5),
-                    tupleValue.getVersionstamp(7),
-                    tupleValue.getLong(6),
-                    tupleValue.getString(2),
-                    tupleValue.getBytes(4),
-                    tupleValue.getBytes(3)
-                );
+                StreamMessage message = unpackByteTupleToStreamMessage(streamId, keyValues.get(i).getValue());
                 messages[i] = message;
             }
 
@@ -590,17 +560,7 @@ public class EventStoreLayer implements EventStore {
                     return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
                 }
 
-                Tuple value = Tuple.fromBytes(valueBytes);
-                StreamMessage message = new StreamMessage(
-                    streamId.getOriginalId(),
-                    value.getUUID(0),
-                    value.getLong(5),
-                    value.getVersionstamp(7),
-                    value.getLong(6),
-                    value.getString(2),
-                    value.getBytes(4),
-                    value.getBytes(3)
-                );
+                StreamMessage message = unpackByteTupleToStreamMessage(streamId, valueBytes);
                 return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.SUCCESS, streamId.getOriginalId(), eventNumber, message));
             });
         }
@@ -616,6 +576,20 @@ public class EventStoreLayer implements EventStore {
             eventNumber,
             Instant.now().toEpochMilli(),
             versionstamp);
+    }
+
+    private static StreamMessage unpackByteTupleToStreamMessage(StreamId streamId, byte[] bytes) {
+        Tuple value = Tuple.fromBytes(bytes);
+        return  new StreamMessage(
+            streamId.getOriginalId(),
+            value.getUUID(0),
+            value.getLong(5),
+            value.getVersionstamp(7),
+            value.getLong(6),
+            value.getString(2),
+            value.getBytes(4),
+            value.getBytes(3)
+        );
     }
 
     private Subspace getGlobalSubspace() {
