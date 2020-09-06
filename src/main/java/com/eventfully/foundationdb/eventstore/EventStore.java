@@ -96,10 +96,4 @@ public interface EventStore {
      */
     void deleteStream(String streamId, long expectedVersion);
 
-    /**
-     *
-     * @param streamId
-     * @param messageId
-     */
-    void deleteMessage(String streamId, UUID messageId);
 }
