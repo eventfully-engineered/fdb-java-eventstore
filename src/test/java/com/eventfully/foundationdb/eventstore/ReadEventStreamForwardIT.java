@@ -12,7 +12,7 @@ import static com.eventfully.foundationdb.eventstore.TestHelpers.assertEventData
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class ReadEventStreamFowardIT extends ITFixture {
+class ReadEventStreamForwardIT extends ITFixture {
 
     @Test
     void shouldThrowWhenCountLessThanOrEqualZero() throws ExecutionException, InterruptedException {
