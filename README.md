@@ -1,4 +1,4 @@
-# fdb-java-es 
+# fdb-java-eventstore
 
 [![Build Status](https://travis-ci.org/eventfully-engineered/fdb-java-es.svg?branch=master)](https://travis-ci.org/eventfully-engineered/fdb-java-es.svg?branch=master)
 [![codecov](https://codecov.io/gh/seancarroll/fdb-java-es/branch/master/graph/badge.svg)](https://codecov.io/gh/seancarroll/fdb-java-es)

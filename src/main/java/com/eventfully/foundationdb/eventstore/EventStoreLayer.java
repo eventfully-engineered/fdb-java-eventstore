@@ -156,7 +156,7 @@ public class EventStoreLayer implements EventStore {
 
             return trVersionFuture
                 .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
-                .thenApply(completedVersion -> new AppendResult(messages.length - 1, completedVersion));
+                .thenApply(completedVersion -> new AppendResult(messages.length - 1L, completedVersion));
         });
 
     }
@@ -239,7 +239,8 @@ public class EventStoreLayer implements EventStore {
                 KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
                 rangeCount,
                 false,
-                StreamingMode.WANT_ALL).asList();
+                StreamingMode.WANT_ALL
+            ).asList();
         });
 
         ReadNextAllSlice readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
@@ -405,17 +406,7 @@ public class EventStoreLayer implements EventStore {
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.completedFuture(new ReadStreamSlice(
-                    streamId.getOriginalId(),
-                    SliceReadStatus.STREAM_NOT_FOUND,
-                    fromVersionInclusive,
-                    StreamVersion.END,
-                    StreamVersion.END,
-                    StreamPosition.END,
-                    ReadDirection.FORWARD,
-                    true,
-                    readNext,
-                    Empty.STREAM_MESSAGES));
+                return CompletableFuture.completedFuture(ReadStreamSlice.notFound(streamId, fromVersionInclusive, ReadDirection.FORWARD, readNext));
             }
 
             int limit = Math.min(maxCount, keyValues.size());
@@ -465,24 +456,15 @@ public class EventStoreLayer implements EventStore {
                 streamSubspace.pack(Tuple.from(fromVersionInclusive == StreamPosition.END ? Long.MAX_VALUE : fromVersionInclusive + 1)),
                 rangeCount,
                 true,
-                StreamingMode.WANT_ALL).asList();
+                StreamingMode.WANT_ALL
+            ).asList();
         });
 
         ReadNextStreamSlice readNext = (long nextPosition) -> readStreamBackwardsInternal(streamId, nextPosition, maxCount);
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
-                return CompletableFuture.completedFuture(new ReadStreamSlice(
-                    streamId.getOriginalId(),
-                    SliceReadStatus.STREAM_NOT_FOUND,
-                    fromVersionInclusive,
-                    StreamVersion.END,
-                    StreamVersion.END,
-                    StreamPosition.END,
-                    ReadDirection.BACKWARD,
-                    true,
-                    readNext,
-                    Empty.STREAM_MESSAGES));
+                return CompletableFuture.completedFuture(ReadStreamSlice.notFound(streamId, fromVersionInclusive, ReadDirection.BACKWARD, readNext));
             }
 
             int limit = Math.min(maxCount, keyValues.size());
@@ -514,21 +496,14 @@ public class EventStoreLayer implements EventStore {
     public CompletableFuture<Versionstamp> readHeadPosition() {
         Subspace globalSubspace = getGlobalSubspace();
 
-        return database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end))).thenApply(k -> {
-            if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
-                return null;
-            }
+        return database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end)))
+            .thenApply(k -> {
+                if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
+                    return null;
+                }
 
-            Tuple t = globalSubspace.unpack(k);
-            // TODO: can this ever be null?
-            if (t == null) {
-                // TODO: custom exception
-                throw new RuntimeException("failed to unpack key");
-            }
-
-            return t.getVersionstamp(0);
-        });
-
+                return globalSubspace.unpack(k).getVersionstamp(0);
+            });
     }
 
     @Override

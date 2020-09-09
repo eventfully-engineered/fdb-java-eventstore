@@ -28,3 +28,5 @@ Links to docs, research, projects that have inspired design or implementation
 - https://eventstore.org/docs/dotnet-api/reading-events/index.html
 - https://www.snowflake.com/how-foundationdb-powers-snowflake-metadata-forward/
 - https://forums.foundationdb.org/t/ranges-without-explicit-end-go/773 --> read
+- https://github.com/richardartoul/tsdb-layer
+- https://www.dataengineeringpodcast.com/couchdb-document-database-episode-124/

@@ -1,18 +1,19 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
+import com.google.common.base.Stopwatch;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
+
+// TODO: test to verify an exception will be thrown if we attempt to write to existing version
 
 class AppendToStreamIT extends ITFixture {
 
@@ -54,9 +55,9 @@ class AppendToStreamIT extends ITFixture {
 
     // multiple_idempotent_writes
     // multiple_idempotent_writes_with_same_id_bug_case
-    // in_wtf_multiple_case_of_multiple_writes_expected_version_any_per_all_same_id
-    // in_slightly_reasonable_multiple_case_of_multiple_writes_with_expected_version_per_all_same_id
-    // should_fail_writing_with_correct_exp_ver_to_deleted_stream
+    // in_case_where_multiple_writes_of_multiple_events_with_the_same_ids_using_expected_version_any_then_next_expected_version_is_unreliable
+    // in_case_where_multiple_writes_of_multiple_events_with_the_same_ids_using_expected_version_nostream_then_next_expected_version_is_correct
+
 
 
     @Test
@@ -71,9 +72,6 @@ class AppendToStreamIT extends ITFixture {
             assertEquals(-1, Position.START.compareTo(appendResult.getCurrentPosition()));
         }
     }
-
-    // should_fail_writing_with_any_exp_ver_to_deleted_stream
-    // should_fail_writing_with_invalid_exp_ver_to_deleted_stream
 
 
     @Test
@@ -159,8 +157,13 @@ class AppendToStreamIT extends ITFixture {
         }
     }
 
+
     // returns_failure_status_when_conditionally_appending_with_version_mismatch
     // returns_success_status_when_conditionally_appending_with_matching_version
     // returns_failure_status_when_conditionally_appending_to_a_deleted_stream
 
+
+    // should_fail_writing_with_correct_exp_ver_to_deleted_stream
+    // should_fail_writing_with_any_exp_ver_to_deleted_stream
+    // should_fail_writing_with_invalid_exp_ver_to_deleted_stream
 }

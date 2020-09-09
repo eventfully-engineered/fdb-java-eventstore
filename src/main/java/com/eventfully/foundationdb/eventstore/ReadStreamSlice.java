@@ -153,7 +153,10 @@ public class ReadStreamSlice {
             .toString();
     }
 
-    public static ReadStreamSlice notFoundSlice(StreamId streamId, long fromVersionInclusive, ReadNextStreamSlice readNext) {
+    public static ReadStreamSlice notFound(StreamId streamId,
+                                           long fromVersionInclusive,
+                                           ReadDirection readDirection,
+                                           ReadNextStreamSlice readNext) {
         return new ReadStreamSlice(
             streamId.getOriginalId(),
             SliceReadStatus.STREAM_NOT_FOUND,
@@ -161,7 +164,7 @@ public class ReadStreamSlice {
             StreamVersion.END,
             StreamVersion.END,
             StreamPosition.END,
-            ReadDirection.FORWARD,
+            readDirection,
             true,
             readNext,
             Empty.STREAM_MESSAGES);

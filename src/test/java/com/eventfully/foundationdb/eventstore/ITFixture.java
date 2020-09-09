@@ -2,11 +2,6 @@ package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.FDB;
 import org.junit.jupiter.api.BeforeEach;
-import org.testcontainers.containers.FixedHostPortGenericContainer;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.concurrent.ExecutionException;
 
