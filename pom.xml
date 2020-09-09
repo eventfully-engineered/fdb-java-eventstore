@@ -51,15 +51,15 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/seancarroll/fdb-java-es.git</connection>
-        <developerConnection>scm:git:git@github.com:seancarroll/fdb-java-es.git</developerConnection>
-        <url>https://github.com/seancarroll/fdb-java-es</url>
+        <connection>scm:git:git://github.com/eventfully-engineered/fdb-java-eventstore.git</connection>
+        <developerConnection>scm:git:git@github.com:eventfully-engineered/fdb-java-eventstore.git</developerConnection>
+        <url>https://github.com/eventfully-engineered/fdb-java-eventstore</url>
         <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/seancarroll/fdb-java-es/issues</url>
+        <url>https://github.com/eventfully-engineered/fdb-java-eventstore/issues</url>
     </issueManagement>
 
     <dependencies>
