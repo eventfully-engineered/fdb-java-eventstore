@@ -44,8 +44,9 @@ public class NewStreamMessage {
         this.data = data;
         this.metadata = metadata == null ? Empty.BYTE_ARRAY : metadata;
 
-        // TODO: would like to be able to support large values. @see issue https://github.com/seancarroll/fdb-java-es/issues/1
-        int size = data == null ? 0 : data.length;
+        // TODO: would like to be able to support large values.
+        // @see issue https://github.com/eventfully-engineered/fdb-java-eventstore/issues/1
+        int size = data.length;
         size += metadata == null ? 0 : metadata.length;
         size += type.length() * 2;
         size += messageId.toString().length() * 2;

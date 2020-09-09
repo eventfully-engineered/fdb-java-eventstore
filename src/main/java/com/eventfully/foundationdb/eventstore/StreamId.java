@@ -55,12 +55,15 @@ public class StreamId {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
+        }
         StreamId other = (StreamId) obj;
         return originalId.equals(other.originalId) && hash.equals(other.hash);
     }
