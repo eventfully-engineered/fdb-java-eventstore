@@ -24,9 +24,30 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 // TODO: for append, should we be starting a transaction that encompasses the read + write just to make sure nothing
 // else can write to our expected version?
+// internal methods would need to take transaction
+
+// TODO: update global subspace format to be `Global / [versionstamp] / [stream] / [event]
+
+// TODO: run vs runAsync
+// https://forums.foundationdb.org/t/fdbdatabase-usage-from-java-api/593/2
+// run synchronously commit your transaction
+// he runAsync retry loop will only call commit after the returned future has completed (so you could do something like read a key from database, make some write based on your read, and then commit).
+
+//To define ranges that extend from the beginning the database, you can use the empty string '':
+//
+//    for k, v in tr.get_range('', 'm'):
+//    print(k, v)
+//    Likewise, to define ranges that extend to the end of the database, you can use the key '\xFF':
+//
+//    for k, v in tr.get_range('m', '\xFF'):
+//    print(k, v)
+
+// TODO: for multi-tenant that is using the shared cluster we need to allow passing in a directory
+// so that we can separate tenants
 
 /**
  *
@@ -107,7 +128,7 @@ public class EventStoreLayer implements EventStore {
             // TODO: should timestamp be outside the loop and passed in? does it matter?
             // TODO: rather than a single tuple value how about we store two values and avoid having to a string split?
             // see how the perf compares
-            CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            return database.runAsync(tr -> {
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -117,10 +138,9 @@ public class EventStoreLayer implements EventStore {
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
-                return tr.getVersionstamp();
-            });
-
-            return trVersionFuture
+                return CompletableFuture.completedFuture(tr.getVersionstamp());
+            })
+                .thenCompose(Function.identity())
                 .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
                 .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
         });
@@ -131,17 +151,17 @@ public class EventStoreLayer implements EventStore {
     private CompletableFuture<AppendResult> appendToStreamExpectedVersionNoStream(StreamId streamId, NewStreamMessage[] messages) {
         CompletableFuture<ReadStreamSlice> backwardSliceFuture = readStreamBackwardsInternal(streamId, StreamPosition.END, 1);
 
-        return backwardSliceFuture.thenCompose(backwardSlice -> {
+        return backwardSliceFuture.thenApplyAsync(backwardSlice -> {
             if (SliceReadStatus.STREAM_NOT_FOUND != backwardSlice.getStatus()) {
                 throw new WrongExpectedVersionException(streamId.getOriginalId(), StreamVersion.NONE);
             }
             return CompletableFuture.completedFuture(backwardSlice);
-        }).thenCompose(backwardSlice -> {
+        }).thenComposeAsync(backwardSlice -> {
             Subspace globalSubspace = getGlobalSubspace();
             Subspace streamSubspace = getStreamSubspace(streamId);
 
             AtomicLong latestStreamVersion = new AtomicLong(-1);
-            CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            return database.runAsync(tr -> {
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -150,13 +170,11 @@ public class EventStoreLayer implements EventStore {
                     Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
-
-                return tr.getVersionstamp();
-            });
-
-            return trVersionFuture
-                .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
-                .thenApply(completedVersion -> new AppendResult(messages.length - 1L, completedVersion));
+                return CompletableFuture.completedFuture(tr.getVersionstamp());
+            })
+            .thenCompose(Function.identity())
+            .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
+            .thenApply(completedVersion -> new AppendResult(messages.length - 1L, completedVersion));
         });
 
     }
@@ -175,7 +193,7 @@ public class EventStoreLayer implements EventStore {
             Subspace streamSubspace = getStreamSubspace(streamId);
 
             AtomicLong latestStreamVersion = new AtomicLong(readEventResult.getEventNumber());
-            CompletableFuture<byte[]> trVersionFuture = database.run(tr -> {
+            return database.runAsync(tr -> {
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -185,10 +203,9 @@ public class EventStoreLayer implements EventStore {
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
-                return tr.getVersionstamp();
-            });
-
-            return trVersionFuture
+                return CompletableFuture.completedFuture(tr.getVersionstamp());
+            })
+                .thenCompose(Function.identity())
                 .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
                 .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
         });
@@ -226,7 +243,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace globalSubspace = getGlobalSubspace();
 
-        CompletableFuture<List<KeyValue>> kvs = database.read(tr -> {
+        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
@@ -285,7 +302,8 @@ public class EventStoreLayer implements EventStore {
                         maxCount >= keyValues.size(),
                         ReadDirection.FORWARD,
                         readNext,
-                        messages));
+                        messages)
+                    );
                 });
         });
 
@@ -298,7 +316,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace globalSubspace = getGlobalSubspace();
 
-        CompletableFuture<List<KeyValue>> kvs = database.read(tr -> {
+        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
@@ -332,7 +350,8 @@ public class EventStoreLayer implements EventStore {
                     true,
                     ReadDirection.BACKWARD,
                     readNext,
-                    Empty.STREAM_MESSAGES));
+                    Empty.STREAM_MESSAGES)
+                );
             }
 
             int limit = Math.min(maxCount, keyValues.size());
@@ -361,7 +380,8 @@ public class EventStoreLayer implements EventStore {
                         maxCount >= keyValues.size(),
                         ReadDirection.BACKWARD,
                         readNext,
-                        messages));
+                        messages)
+                    );
                 });
 
         });
@@ -386,7 +406,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace streamSubspace = getStreamSubspace(streamId);
 
-        CompletableFuture<List<KeyValue>> kvs = database.read(tr -> {
+        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
 
@@ -430,7 +450,8 @@ public class EventStoreLayer implements EventStore {
                 ReadDirection.FORWARD,
                 maxCount >= keyValues.size(),
                 readNext,
-                messages));
+                messages)
+            );
         });
     }
 
@@ -447,7 +468,7 @@ public class EventStoreLayer implements EventStore {
 
         Subspace streamSubspace = getStreamSubspace(streamId);
 
-        CompletableFuture<List<KeyValue>> kvs = database.read(tr -> {
+        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
             // add one so we can determine if we are at the end of the stream
             int rangeCount = maxCount + 1;
             return tr.getRange(
@@ -488,7 +509,8 @@ public class EventStoreLayer implements EventStore {
                 ReadDirection.BACKWARD,
                 maxCount >= keyValues.size(),
                 readNext,
-                messages));
+                messages)
+            );
         });
     }
 
@@ -496,7 +518,7 @@ public class EventStoreLayer implements EventStore {
     public CompletableFuture<Versionstamp> readHeadPosition() {
         Subspace globalSubspace = getGlobalSubspace();
 
-        return database.read(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end)))
+        return database.readAsync(tr -> tr.getKey(KeySelector.lastLessThan(globalSubspace.range().end)))
             .thenApply(k -> {
                 if (ByteBuffer.wrap(k).compareTo(ByteBuffer.wrap(globalSubspace.range().begin)) < 0) {
                     return null;
@@ -533,7 +555,7 @@ public class EventStoreLayer implements EventStore {
             });
 
         } else {
-            CompletableFuture<byte[]> valueBytesFuture = database.read(tr -> tr.get(streamSubspace.pack(Tuple.from(eventNumber))));
+            CompletableFuture<byte[]> valueBytesFuture = database.readAsync(tr -> tr.get(streamSubspace.pack(Tuple.from(eventNumber))));
             return valueBytesFuture.thenCompose(valueBytes -> {
                 if (valueBytes == null) {
                     return CompletableFuture.completedFuture(new ReadEventResult(ReadEventStatus.NOT_FOUND, streamId.getOriginalId(), eventNumber, null));
@@ -554,7 +576,8 @@ public class EventStoreLayer implements EventStore {
             message.getMetadata(),
             eventNumber,
             Instant.now().toEpochMilli(),
-            versionstamp);
+            versionstamp
+        );
     }
 
     private static StreamMessage unpackByteTupleToStreamMessage(StreamId streamId, byte[] bytes) {

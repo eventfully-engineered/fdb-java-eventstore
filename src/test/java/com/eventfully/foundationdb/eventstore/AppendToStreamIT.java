@@ -1,7 +1,6 @@
 package com.eventfully.foundationdb.eventstore;
 
 import com.apple.foundationdb.Database;
-import com.google.common.base.Stopwatch;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
