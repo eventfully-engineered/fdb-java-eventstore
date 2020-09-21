@@ -6,7 +6,6 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.StreamingMode;
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
@@ -24,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -100,6 +98,7 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public CompletableFuture<AppendResult> appendToStream(String streamId, long expectedVersion, NewStreamMessage... messages) {
+        Preconditions.checkNotNull(streamId);
         if (messages == null || messages.length == 0) {
             throw new IllegalArgumentException("messages must not be null or empty");
         }
@@ -150,6 +149,7 @@ public class EventStoreLayer implements EventStore {
 
     // TODO: clean up
     private CompletableFuture<AppendResult> appendToStreamExpectedVersionNoStream(StreamId streamId, NewStreamMessage[] messages) {
+        AtomicLong latestStreamVersion = new AtomicLong(-1);
         return database.runAsync(tr -> {
             CompletableFuture<ReadStreamSlice> backwardSliceFuture = readStreamBackwardsInternal(tr, streamId, StreamPosition.END, 1);
             return backwardSliceFuture.thenApplyAsync(backwardSlice -> {
@@ -161,7 +161,6 @@ public class EventStoreLayer implements EventStore {
                 Subspace globalSubspace = getGlobalSubspace();
                 Subspace streamSubspace = getStreamSubspace(streamId);
 
-                AtomicLong latestStreamVersion = new AtomicLong(-1);
                 for (int i = 0; i < messages.length; i++) {
                     long eventNumber = latestStreamVersion.incrementAndGet();
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
@@ -175,7 +174,7 @@ public class EventStoreLayer implements EventStore {
         })
             .thenCompose(Function.identity())
             .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
-            .thenApply(completedVersion -> new AppendResult(messages.length - 1L, completedVersion));
+            .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
     }
 
     // TODO: clean up
@@ -223,7 +222,11 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public SetStreamMetadataResult setStreamMetadata(String streamId, long expectedStreamMetadataVersion, Integer maxAge, Integer maxCount, String metadataJson) {
+    public SetStreamMetadataResult setStreamMetadata(String streamId,
+                                                     long expectedStreamMetadataVersion,
+                                                     Integer maxAge,
+                                                     Integer maxCount,
+                                                     String metadataJson) {
         // TODO: implement
         return null;
     }
@@ -255,8 +258,7 @@ public class EventStoreLayer implements EventStore {
         KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
             ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
             : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
-
-
+        
         CompletableFuture<List<KeyValue>> kvs = tr.getRange(
             begin,
             KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
