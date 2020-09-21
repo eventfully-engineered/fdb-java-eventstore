@@ -234,7 +234,7 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        return readAllForwardInternal(fromPositionInclusive, maxCount);
+        return database.readAsync(tr -> readAllForwardInternal(tr, fromPositionInclusive, maxCount));
     }
 
     @Override
@@ -243,30 +243,30 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        return readAllBackwardInternal(fromPositionInclusive, maxCount);
+        return database.readAsync(tr -> readAllBackwardInternal(tr, fromPositionInclusive, maxCount));
     }
 
-    private CompletableFuture<ReadAllSlice> readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
+    private CompletableFuture<ReadAllSlice> readAllForwardInternal(ReadTransaction tr, Versionstamp fromPositionInclusive, int maxCount) {
         Subspace globalSubspace = getGlobalSubspace();
 
-        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
-            // add one so we can determine if we are at the end of the stream
-            int rangeCount = maxCount + 1;
+        // add one so we can determine if we are at the end of the stream
+        int rangeCount = maxCount + 1;
 
-            KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
-                ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
-                : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
+        KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
+            ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
+            : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
 
-            return tr.getRange(
-                begin,
-                KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
-                rangeCount,
-                false,
-                StreamingMode.WANT_ALL
-            ).asList();
-        });
 
-        ReadNextAllSlice readNext = (Versionstamp nextPosition) -> readAllForwardInternal(nextPosition, maxCount);
+        CompletableFuture<List<KeyValue>> kvs = tr.getRange(
+            begin,
+            KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
+            rangeCount,
+            false,
+            StreamingMode.WANT_ALL
+        ).asList();
+
+        ReadNextAllSlice readNext = (Versionstamp nextPosition)
+            -> database.readAsync(readTransaction -> readAllForwardInternal(readTransaction, nextPosition, maxCount));
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
@@ -315,34 +315,33 @@ public class EventStoreLayer implements EventStore {
 
     }
 
-    private CompletableFuture<ReadAllSlice> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
+    private CompletableFuture<ReadAllSlice> readAllBackwardInternal(ReadTransaction tr, Versionstamp fromPositionInclusive, int maxCount) {
         Subspace globalSubspace = getGlobalSubspace();
 
-        CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
-            // add one so we can determine if we are at the end of the stream
-            int rangeCount = maxCount + 1;
+        // add one so we can determine if we are at the end of the stream
+        int rangeCount = maxCount + 1;
 
-            final KeySelector end;
-            if (Objects.equals(fromPositionInclusive, Position.START)) {
-                // firstGreaterThan (+1) doesn't work when attempting to get start position
-                // Seems like range queries don't work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
-                // so will bump the offset by 2
-                end = new KeySelector(globalSubspace.range().begin, false, 2);
-            } else if (Objects.equals(fromPositionInclusive, Position.END)) {
-                end = KeySelector.firstGreaterThan(globalSubspace.range().end);
-            } else {
-                end = KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
-            }
+        final KeySelector end;
+        if (Objects.equals(fromPositionInclusive, Position.START)) {
+            // firstGreaterThan (+1) doesn't work when attempting to get start position
+            // Seems like range queries don't work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
+            // so will bump the offset by 2
+            end = new KeySelector(globalSubspace.range().begin, false, 2);
+        } else if (Objects.equals(fromPositionInclusive, Position.END)) {
+            end = KeySelector.firstGreaterThan(globalSubspace.range().end);
+        } else {
+            end = KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+        }
 
-            return tr.getRange(
-                KeySelector.firstGreaterOrEqual(globalSubspace.range().begin),
-                end,
-                rangeCount,
-                true,
-                StreamingMode.WANT_ALL).asList();
-        });
+        CompletableFuture<List<KeyValue>> kvs = tr.getRange(
+            KeySelector.firstGreaterOrEqual(globalSubspace.range().begin),
+            end,
+            rangeCount,
+            true,
+            StreamingMode.WANT_ALL).asList();
 
-        ReadNextAllSlice readNext = (Versionstamp nextPosition) -> readAllBackwardInternal(nextPosition, maxCount);
+        ReadNextAllSlice readNext = (Versionstamp nextPosition)
+            -> database.readAsync(readTransaction -> readAllBackwardInternal(readTransaction, nextPosition, maxCount));
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
@@ -425,7 +424,8 @@ public class EventStoreLayer implements EventStore {
             false,
             StreamingMode.WANT_ALL).asList();
 
-        ReadNextStreamSlice readNext = (long nextPosition) -> readStreamForwardsInternal(tr, streamId, nextPosition, maxCount);
+        ReadNextStreamSlice readNext = (long nextPosition)
+            -> database.readAsync(readTransaction -> readStreamForwardsInternal(readTransaction, streamId, nextPosition, maxCount));
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
@@ -486,7 +486,8 @@ public class EventStoreLayer implements EventStore {
             StreamingMode.WANT_ALL
         ).asList();
 
-        ReadNextStreamSlice readNext = (long nextPosition) -> readStreamBackwardsInternal(tr, streamId, nextPosition, maxCount);
+        ReadNextStreamSlice readNext = (long nextPosition)
+            -> database.readAsync(readTransaction -> readStreamBackwardsInternal(readTransaction, streamId, nextPosition, maxCount));
 
         return kvs.thenCompose(keyValues -> {
             if (keyValues.isEmpty()) {
