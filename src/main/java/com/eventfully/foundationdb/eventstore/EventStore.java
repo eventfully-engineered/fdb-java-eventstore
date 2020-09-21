@@ -93,6 +93,6 @@ public interface EventStore {
      * @param streamId
      * @param expectedVersion
      */
-    void deleteStream(String streamId, long expectedVersion);
+    void deleteStream(String streamId);
 
 }

@@ -212,7 +212,8 @@ public class EventStoreLayer implements EventStore {
     }
 
     @Override
-    public void deleteStream(String streamId, long expectedVersion) {
+    public void deleteStream(String streamId) {
+        Preconditions.checkNotNull(streamId);
         // TODO: how to handle?
         // We can clear the stream subspace via clear(Range) but how to delete from global subspace?
         // would we need a scavenger process? something else?
@@ -229,19 +230,23 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public CompletableFuture<ReadAllSlice> readAllForwards(Versionstamp fromPositionInclusive, int maxCount) {
+        Preconditions.checkNotNull(fromPositionInclusive);
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
         return readAllForwardInternal(fromPositionInclusive, maxCount);
     }
 
     @Override
     public CompletableFuture<ReadAllSlice> readAllBackwards(Versionstamp fromPositionInclusive, int maxCount) {
-        return readAllBackwardInternal(fromPositionInclusive, maxCount);
-    }
-
-    private CompletableFuture<ReadAllSlice> readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
         Preconditions.checkNotNull(fromPositionInclusive);
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
+        return readAllBackwardInternal(fromPositionInclusive, maxCount);
+    }
+
+    private CompletableFuture<ReadAllSlice> readAllForwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
         Subspace globalSubspace = getGlobalSubspace();
 
         CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
@@ -311,10 +316,6 @@ public class EventStoreLayer implements EventStore {
     }
 
     private CompletableFuture<ReadAllSlice> readAllBackwardInternal(Versionstamp fromPositionInclusive, int maxCount) {
-        Preconditions.checkNotNull(fromPositionInclusive);
-        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
-        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
-
         Subspace globalSubspace = getGlobalSubspace();
 
         CompletableFuture<List<KeyValue>> kvs = database.readAsync(tr -> {
@@ -395,6 +396,11 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public CompletableFuture<ReadStreamSlice> readStreamForwards(String streamId, long fromVersionInclusive, int maxCount) {
+        Preconditions.checkNotNull(streamId);
+        Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
         return database.readAsync(readTransaction -> readStreamForwardsInternal(readTransaction, new StreamId(streamId), fromVersionInclusive, maxCount));
 
     }
@@ -403,11 +409,6 @@ public class EventStoreLayer implements EventStore {
                                                                           StreamId streamId,
                                                                           long fromVersionInclusive,
                                                                           int maxCount) {
-        Preconditions.checkNotNull(streamId);
-        Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
-        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
-        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
-
         Subspace streamSubspace = getStreamSubspace(streamId);
 
         // add one so we can determine if we are at the end of the stream
@@ -459,6 +460,11 @@ public class EventStoreLayer implements EventStore {
 
     @Override
     public CompletableFuture<ReadStreamSlice> readStreamBackwards(String streamId, long fromVersionInclusive, int maxCount) {
+        Preconditions.checkNotNull(streamId);
+        Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
+        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
+        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
+
         return database.readAsync(readTransaction -> {
             return readStreamBackwardsInternal(readTransaction, new StreamId(streamId), fromVersionInclusive, maxCount);
         });
@@ -468,11 +474,6 @@ public class EventStoreLayer implements EventStore {
                                                                            StreamId streamId,
                                                                            long fromVersionInclusive,
                                                                            int maxCount) {
-        Preconditions.checkNotNull(streamId);
-        Preconditions.checkArgument(fromVersionInclusive >= -1, "fromVersionInclusive must greater than -1");
-        Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
-        Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
-
         Subspace streamSubspace = getStreamSubspace(streamId);
 
         int rangeCount = maxCount + 1;
