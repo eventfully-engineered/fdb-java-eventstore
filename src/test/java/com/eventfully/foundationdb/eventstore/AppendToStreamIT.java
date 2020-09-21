@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -143,7 +142,7 @@ class AppendToStreamIT extends ITFixture {
 
 
     @Test
-    void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException, TimeoutException {
+    void canAppendMultipleEventsAtOnce() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {
             EventStoreLayer es = EventStoreLayer.getDefault(db).get();
 

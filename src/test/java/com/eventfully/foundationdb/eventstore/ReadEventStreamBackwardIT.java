@@ -182,7 +182,7 @@ class ReadEventStreamBackwardIT extends ITFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
-            Long position = StreamPosition.END;
+            long position = StreamPosition.END;
             ReadStreamSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
@@ -207,7 +207,7 @@ class ReadEventStreamBackwardIT extends ITFixture {
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
             List<StreamMessage> all = new ArrayList<>();
-            Long position = StreamPosition.END;
+            long position = StreamPosition.END;
             ReadStreamSlice slice;
             boolean atEnd = false;
             while (!atEnd) {
