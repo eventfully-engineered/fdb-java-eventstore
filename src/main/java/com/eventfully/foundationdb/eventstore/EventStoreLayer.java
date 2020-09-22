@@ -32,8 +32,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 // else can write to our expected version?
 // internal methods would need to take transaction
 
-// TODO: update global subspace format to be `Global / [versionstamp] / [stream] / [event]
-
 // TODO: run vs runAsync
 // https://forums.foundationdb.org/t/fdbdatabase-usage-from-java-api/593/2
 // run synchronously commit your transaction
@@ -51,8 +49,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 // TODO: for multi-tenant that is using the shared cluster we need to allow passing in a directory
 // so that we can separate tenants
 
-// TODO: move preconditions out of completablefuture block
-
 /**
  *
  */
@@ -61,7 +57,6 @@ public class EventStoreLayer implements EventStore {
     private static final Logger LOG = LoggerFactory.getLogger(EventStoreLayer.class);
 
     public static final int MAX_READ_SIZE = 4096;
-    private static final String POINTER_DELIMITER = "@";
 
     private final Database database;
     private final DirectorySubspace esSubspace;
@@ -135,7 +130,9 @@ public class EventStoreLayer implements EventStore {
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
                     Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
+                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
+                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
+                    // getRange and inclusive end
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
@@ -143,7 +140,7 @@ public class EventStoreLayer implements EventStore {
             });
         })
             .thenCompose(Function.identity())
-            .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
+            .thenApply(Versionstamp::complete)
             .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
     }
 
@@ -166,14 +163,16 @@ public class EventStoreLayer implements EventStore {
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
                     Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
+                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
+                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
+                    // getRange and inclusive end
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
                 return completedFuture(tr.getVersionstamp());
             });
         })
             .thenCompose(Function.identity())
-            .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
+            .thenApply(Versionstamp::complete)
             .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
     }
 
@@ -198,7 +197,9 @@ public class EventStoreLayer implements EventStore {
                     Versionstamp versionstamp = Versionstamp.incomplete(i);
                     Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(eventNumber + POINTER_DELIMITER + streamId.getOriginalId());
+                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
+                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
+                    // getRange and inclusive end
                     tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
                 }
 
@@ -206,7 +207,7 @@ public class EventStoreLayer implements EventStore {
             });
         })
             .thenCompose(Function.identity())
-            .thenApply(trVersion -> Versionstamp.complete(trVersion, messages.length - 1))
+            .thenApply(Versionstamp::complete)
             .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
     }
 
@@ -258,10 +259,10 @@ public class EventStoreLayer implements EventStore {
         KeySelector begin = Objects.equals(fromPositionInclusive, Position.END)
             ? KeySelector.lastLessOrEqual(globalSubspace.range().end)
             : KeySelector.firstGreaterOrEqual(globalSubspace.pack(fromPositionInclusive));
-        
+
         CompletableFuture<List<KeyValue>> kvs = tr.getRange(
             begin,
-            KeySelector.firstGreaterOrEqual(globalSubspace.range().end),
+            KeySelector.firstGreaterThan(globalSubspace.range().end),
             rangeCount,
             false,
             StreamingMode.WANT_ALL
@@ -286,9 +287,8 @@ public class EventStoreLayer implements EventStore {
             List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
             for (int i = 0; i < limit; i++) {
                 KeyValue kv = keyValues.get(i);
-                String value = Tuple.fromBytes(kv.getValue()).getString(0);
-                String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
-                completableFutures.add(readEvent(pointerParts[1], Long.parseLong(pointerParts[0])));
+                Tuple t = Tuple.fromBytes(kv.getValue());
+                completableFutures.add(readEvent(t.getString(0), t.getLong(1)));
             }
 
             // allof doesnt work with lists however if we make completablesFutures an array we run into a
@@ -300,9 +300,12 @@ public class EventStoreLayer implements EventStore {
                         .map(ReadEventResult::getEvent)
                         .toArray(size -> new StreamMessage[completableFutures.size()]);
 
+
+                    // null represents end and used to mean not known
+                    // TODO: see what EventStore does
                     Versionstamp nextPosition = maxCount >= keyValues.size()
                         ? null
-                        : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
+                        : globalSubspace.unpack(keyValues.get(keyValues.size() - 1).getKey()).getVersionstamp(0);
 
                     return completedFuture(new ReadAllSlice(
                         fromPositionInclusive,
@@ -314,7 +317,6 @@ public class EventStoreLayer implements EventStore {
                     );
                 });
         });
-
     }
 
     private CompletableFuture<ReadAllSlice> readAllBackwardInternal(ReadTransaction tr, Versionstamp fromPositionInclusive, int maxCount) {
@@ -333,6 +335,11 @@ public class EventStoreLayer implements EventStore {
             end = KeySelector.firstGreaterThan(globalSubspace.range().end);
         } else {
             end = KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
+
+            // TODO: look into this more to prove
+            // end in getRange is exclusive and for some reason firstGreaterThan(OrEqual) which uses a +1 offset
+            // isnt enough to include fromPositionInclusive
+            // end = new KeySelector(globalSubspace.pack(Tuple.from(fromPositionInclusive)), true, 1);
         }
 
         CompletableFuture<List<KeyValue>> kvs = tr.getRange(
@@ -361,9 +368,8 @@ public class EventStoreLayer implements EventStore {
             List<CompletableFuture<ReadEventResult>> completableFutures = new ArrayList<>(limit);
             for (int i = 0; i < limit; i++) {
                 KeyValue kv = keyValues.get(i);
-                String value = Tuple.fromBytes(kv.getValue()).getString(0);
-                String[] pointerParts = splitOnLastOccurrence(value, POINTER_DELIMITER);
-                completableFutures.add(readEvent(pointerParts[1], Long.parseLong(pointerParts[0])));
+                Tuple t = Tuple.fromBytes(kv.getValue());
+                completableFutures.add(readEvent(t.getString(0), t.getLong(1)));
             }
 
             return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]))
@@ -373,9 +379,10 @@ public class EventStoreLayer implements EventStore {
                         .map(ReadEventResult::getEvent)
                         .toArray(size -> new StreamMessage[completableFutures.size()]);
 
+                    // TODO: improve this so its not so obtuse
                     Versionstamp nextPosition = maxCount >= keyValues.size()
-                        ? null
-                        : globalSubspace.unpack(keyValues.get(maxCount).getKey()).getVersionstamp(0);
+                        ? globalSubspace.unpack(keyValues.get(Math.max(0, keyValues.size() - 1)).getKey()).getVersionstamp(0)
+                        : globalSubspace.unpack(keyValues.get(keyValues.size() - 1).getKey()).getVersionstamp(0);
 
                     return completedFuture(new ReadAllSlice(
                         fromPositionInclusive,
@@ -388,11 +395,6 @@ public class EventStoreLayer implements EventStore {
                 });
         });
 
-    }
-
-    private static String[] splitOnLastOccurrence(String s, String c) {
-        int lastIndexOf = s.lastIndexOf(c);
-        return new String[] {s.substring(0, lastIndexOf), s.substring(lastIndexOf + 1) };
     }
 
     @Override
