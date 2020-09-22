@@ -99,7 +99,6 @@ public class EventStoreLayer implements EventStore {
         }
 
         StreamId stream = new StreamId(streamId);
-
         if (expectedVersion == ExpectedVersion.ANY) {
             return appendToStreamExpectedVersionAny(stream, messages);
         }
@@ -327,6 +326,7 @@ public class EventStoreLayer implements EventStore {
 
         final KeySelector end;
         if (Objects.equals(fromPositionInclusive, Position.START)) {
+            // TODO: check this...I feel like its wrong
             // firstGreaterThan (+1) doesn't work when attempting to get start position
             // Seems like range queries don't work when begin has firstGreaterOrEqual and end with firstGreaterThan or firstGreaterOrEqual
             // so will bump the offset by 2
@@ -335,11 +335,6 @@ public class EventStoreLayer implements EventStore {
             end = KeySelector.firstGreaterThan(globalSubspace.range().end);
         } else {
             end = KeySelector.firstGreaterThan(globalSubspace.pack(Tuple.from(fromPositionInclusive)));
-
-            // TODO: look into this more to prove
-            // end in getRange is exclusive and for some reason firstGreaterThan(OrEqual) which uses a +1 offset
-            // isnt enough to include fromPositionInclusive
-            // end = new KeySelector(globalSubspace.pack(Tuple.from(fromPositionInclusive)), true, 1);
         }
 
         CompletableFuture<List<KeyValue>> kvs = tr.getRange(
@@ -404,8 +399,7 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        return database.readAsync(readTransaction -> readStreamForwardsInternal(readTransaction, new StreamId(streamId), fromVersionInclusive, maxCount));
-
+        return database.readAsync(tr -> readStreamForwardsInternal(tr, new StreamId(streamId), fromVersionInclusive, maxCount));
     }
 
     private CompletableFuture<ReadStreamSlice> readStreamForwardsInternal(ReadTransaction tr,
@@ -426,7 +420,8 @@ public class EventStoreLayer implements EventStore {
             KeySelector.firstGreaterOrEqual(streamSubspace.range().end),
             rangeCount,
             false,
-            StreamingMode.WANT_ALL).asList();
+            StreamingMode.WANT_ALL
+        ).asList();
 
         ReadNextStreamSlice readNext = (long nextPosition)
             -> database.readAsync(readTransaction -> readStreamForwardsInternal(readTransaction, streamId, nextPosition, maxCount));
@@ -469,9 +464,7 @@ public class EventStoreLayer implements EventStore {
         Preconditions.checkArgument(maxCount > 0, "maxCount must be greater than 0");
         Preconditions.checkArgument(maxCount <= MAX_READ_SIZE, "maxCount should be less than %d", MAX_READ_SIZE);
 
-        return database.readAsync(readTransaction -> {
-            return readStreamBackwardsInternal(readTransaction, new StreamId(streamId), fromVersionInclusive, maxCount);
-        });
+        return database.readAsync(tr -> readStreamBackwardsInternal(tr, new StreamId(streamId), fromVersionInclusive, maxCount));
     }
 
     private CompletableFuture<ReadStreamSlice> readStreamBackwardsInternal(ReadTransaction tr,
