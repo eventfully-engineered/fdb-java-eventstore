@@ -6,7 +6,7 @@ package com.eventfully.foundationdb.eventstore;
  *
  *
  */
-public class StreamVersion {
+public final class StreamVersion {
 
     /**
      * The first message in a stream

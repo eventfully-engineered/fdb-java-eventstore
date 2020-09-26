@@ -4,7 +4,7 @@ package com.eventfully.foundationdb.eventstore;
 /**
  * Constants for stream positions
  */
-public class StreamPosition {
+public final class StreamPosition {
 
     /**
      * The first event in a stream

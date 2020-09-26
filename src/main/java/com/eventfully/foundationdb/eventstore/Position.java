@@ -8,7 +8,7 @@ import java.nio.ByteOrder;
 /**
  * Global position constants
  */
-public class Position {
+public final class Position {
 
     /**
      * Position representing the start of the global subspace
