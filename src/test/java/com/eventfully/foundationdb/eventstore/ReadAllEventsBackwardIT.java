@@ -56,6 +56,8 @@ class ReadAllEventsBackwardIT extends ITFixture {
             NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
             es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
 
+            ReadAllSlice s = es.readAllForwards(Position.START, 5).get();
+
             List<StreamMessage> all = new ArrayList<>();
             Versionstamp position = Position.END;
             ReadAllSlice slice;
@@ -116,6 +118,27 @@ class ReadAllEventsBackwardIT extends ITFixture {
             ArrayUtils.reverse(messages);
             StreamMessage[] messagesArray = new StreamMessage[all.size()];
             TestHelpers.assertEventDataEqual(messages, all.toArray(messagesArray));
+        }
+    }
+
+    // TODO: clean up
+    @Test
+    void validateNext() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
+
+            ReadAllSlice slice = es.readAllBackwards(Position.END, 2).get();
+
+            ReadAllSlice all = es.readAllBackwards(Position.END, 5).get();
+
+            ReadEventResult event = es.readEvent("test-stream", 2).get();
+
+            ReadAllSlice next = es.readAllBackwards(slice.getNextPosition(), 1).get();
+
+            assertEquals(1, 1);
         }
     }
 

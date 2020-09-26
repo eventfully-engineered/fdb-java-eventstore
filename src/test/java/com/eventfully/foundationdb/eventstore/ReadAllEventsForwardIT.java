@@ -115,6 +115,25 @@ class ReadAllEventsForwardIT extends ITFixture {
         }
     }
 
+    // TODO: clean up
+    @Test
+    void validateNext() throws ExecutionException, InterruptedException {
+        try (Database db = fdb.open()) {
+            EventStoreLayer es = EventStoreLayer.getDefault(db).get();
+
+            NewStreamMessage[] messages = createNewStreamMessages(1, 2, 3, 4, 5);
+            es.appendToStream("test-stream", ExpectedVersion.ANY, messages).get();
+
+            ReadAllSlice slice = es.readAllForwards(Position.START, 2).get();
+
+            ReadEventResult event = es.readEvent("test-stream", 2).get();
+
+            ReadAllSlice next = es.readAllForwards(slice.getNextPosition(), 1).get();
+
+            assertEquals(1, 1);
+        }
+    }
+
     @Test
     void shouldReturnPartialSliceIfNotEnoughEvents() throws ExecutionException, InterruptedException {
         try (Database db = fdb.open()) {

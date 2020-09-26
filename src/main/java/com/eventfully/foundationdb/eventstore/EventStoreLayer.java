@@ -6,6 +6,7 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.StreamingMode;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
@@ -108,34 +109,14 @@ public class EventStoreLayer implements EventStore {
         return appendToStreamExpectedVersion(stream, expectedVersion, messages);
     }
 
-    // TODO: clean up
+    // TODO: write test for appendToStreamExpectedVersionAny where stream does not exist and verify starting position
     private CompletableFuture<AppendResult> appendToStreamExpectedVersionAny(StreamId streamId, NewStreamMessage[] messages) {
         final AtomicLong latestStreamVersion = new AtomicLong(0);
         return database.runAsync(tr -> {
             CompletableFuture<ReadEventResult> readEventResultFuture = readEventInternal(tr, streamId, StreamPosition.END);
             return readEventResultFuture.thenCompose(readEventResult -> {
-                Subspace globalSubspace = getGlobalSubspace();
-                Subspace streamSubspace = getStreamSubspace(streamId);
-
                 latestStreamVersion.set(readEventResult.getEventNumber());
-
-                // TODO: not a huge fan of "Version" or "StreamVersion" nomenclature/language especially when
-                // eventstore bounces between those as well as position and event number
-                // TODO: should timestamp be outside the loop and passed in? does it matter?
-                // TODO: rather than a single tuple value how about we store two values and avoid having to a string split?
-                // see how the perf compares
-                for (int i = 0; i < messages.length; i++) {
-                    long eventNumber = latestStreamVersion.incrementAndGet();
-                    Versionstamp versionstamp = Versionstamp.incomplete(i);
-                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(eventNumber)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
-                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
-                    // getRange and inclusive end
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
-                }
-
-                return completedFuture(tr.getVersionstamp());
+                return write(tr, streamId, latestStreamVersion, messages);
             });
         })
             .thenCompose(Function.identity())
@@ -152,30 +133,14 @@ public class EventStoreLayer implements EventStore {
                 if (SliceReadStatus.STREAM_NOT_FOUND != backwardSlice.getStatus()) {
                     throw new WrongExpectedVersionException(streamId.getOriginalId(), StreamVersion.NONE);
                 }
-                return completedFuture(backwardSlice);
-            }).thenComposeAsync(backwardSlice -> {
-                Subspace globalSubspace = getGlobalSubspace();
-                Subspace streamSubspace = getStreamSubspace(streamId);
-
-                for (int i = 0; i < messages.length; i++) {
-                    long eventNumber = latestStreamVersion.incrementAndGet();
-                    Versionstamp versionstamp = Versionstamp.incomplete(i);
-                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(i)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
-                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
-                    // getRange and inclusive end
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
-                }
-                return completedFuture(tr.getVersionstamp());
-            });
+                return completedFuture(null);
+            }).thenComposeAsync(ignore -> write(tr, streamId, latestStreamVersion, messages));
         })
             .thenCompose(Function.identity())
             .thenApply(Versionstamp::complete)
             .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
     }
 
-    // TODO: clean up
     private CompletableFuture<AppendResult> appendToStreamExpectedVersion(StreamId streamId, long expectedVersion, NewStreamMessage[] messages) {
         final AtomicLong latestStreamVersion = new AtomicLong(0);
         return database.runAsync(tr -> {
@@ -187,27 +152,34 @@ public class EventStoreLayer implements EventStore {
                 }
                 return completedFuture(readEventResult);
             }).thenCompose(readEventResult -> {
-                Subspace globalSubspace = getGlobalSubspace();
-                Subspace streamSubspace = getStreamSubspace(streamId);
-
                 latestStreamVersion.set(readEventResult.getEventNumber());
-                for (int i = 0; i < messages.length; i++) {
-                    long eventNumber = latestStreamVersion.incrementAndGet();
-                    Versionstamp versionstamp = Versionstamp.incomplete(i);
-                    Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
-                    Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
-                    // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
-                    // getRange and inclusive end
-                    tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
-                }
-
-                return completedFuture(tr.getVersionstamp());
+                return write(tr, streamId, latestStreamVersion, messages);
             });
         })
             .thenCompose(Function.identity())
             .thenApply(Versionstamp::complete)
             .thenApply(completedVersion -> new AppendResult(latestStreamVersion.get(), completedVersion));
+    }
+
+    private CompletableFuture<CompletableFuture<byte[]>> write(Transaction tr,
+                                                               StreamId streamId,
+                                                               AtomicLong latestStreamVersion,
+                                                               NewStreamMessage[] messages) {
+        Subspace globalSubspace = getGlobalSubspace();
+        Subspace streamSubspace = getStreamSubspace(streamId);
+
+        for (int i = 0; i < messages.length; i++) {
+            long eventNumber = latestStreamVersion.incrementAndGet();
+            Versionstamp versionstamp = Versionstamp.incomplete(i);
+            Tuple streamSubspaceValue = packStreamSubspaceValue(streamId, messages[i], eventNumber, versionstamp);
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_VALUE, streamSubspace.subspace(Tuple.from(latestStreamVersion)).pack(), streamSubspaceValue.packWithVersionstamp());
+            Tuple globalSubspaceValue = Tuple.from(streamId.getOriginalId(), eventNumber);
+            // we cant encode additional values (stream / event) into the key as for some reason it causes issues with
+            // getRange and inclusive end
+            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, globalSubspace.packWithVersionstamp(Tuple.from(versionstamp)), globalSubspaceValue.pack());
+        }
+
+        return completedFuture(tr.getVersionstamp());
     }
 
     @Override
@@ -342,7 +314,8 @@ public class EventStoreLayer implements EventStore {
             end,
             rangeCount,
             true,
-            StreamingMode.WANT_ALL).asList();
+            StreamingMode.WANT_ALL
+        ).asList();
 
         ReadNextAllSlice readNext = (Versionstamp nextPosition)
             -> database.readAsync(readTransaction -> readAllBackwardInternal(readTransaction, nextPosition, maxCount));
